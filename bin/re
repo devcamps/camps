@@ -1,0 +1,93 @@
+#!/usr/local/bin/perl
+
+# camp restart script
+
+use strict;
+use warnings;
+use Getopt::Long;
+use Cwd;
+use lib '/home/camp/lib';
+use Camp::Master;
+
+*STDOUT->autoflush(1);
+*STDERR->autoflush(1);
+
+die "Don't run this as root!\n" if $> == 0;
+
+my %conf;
+GetOptions(
+	\%conf,
+	qw(
+		stop
+		start
+		restart
+		all
+	)
+);
+
+my $camp_number;
+
+if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
+	# first command-line argument can be camp number
+	$camp_number = shift;
+}
+
+unless ($camp_number) {
+	# if not specified, get current camp # from current working directory
+	(getcwd) =~ m{/camp(\d+)} and $camp_number = $1;
+}
+
+unless (defined($camp_number)) {
+	die <<'EOF';
+camp restart script
+
+Usage: re [--stop|start|restart] [--all] [#]
+
+Default action is --restart.
+
+By default only the Rails/Interchange servers are acted on.
+Add the --all option to also act on PostgreSQL and Apache.
+
+Camp number is inferred from a camp's current working directory if available.
+
+Example: re 44
+EOF
+}
+
+initialize(
+    camp => $camp_number,
+);
+
+die "You are not the owner of camp $camp_number!\n"
+    if $< != camp_user_obj()->uid()
+;
+
+$conf{restart} = 1 unless $conf{stop} or $conf{start};
+
+my $action;
+for (qw( restart stop start )) {
+	$action = $_, last if $conf{$_};
+}
+
+if ($conf{all}) {
+    server_control(
+        action  => $action,
+        service => 'all',
+    );
+}
+else {
+    if (has_rails()) {
+        server_control(
+            action  => $action,
+            service => 'rails',
+        );
+    }
+    if (has_ic()) {
+        server_control(
+            action  => $action,
+            service => 'ic',
+        );
+    }
+}
+
+exit 0;

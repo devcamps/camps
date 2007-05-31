@@ -1,0 +1,30 @@
+#!/usr/bin/perl
+
+# camp psql helper
+
+use strict;
+use warnings;
+use Cwd;
+
+my $camp;
+
+if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
+	# first command-line argument can be camp number
+	$camp = shift;
+}
+
+unless ($camp) {
+	# if not specified, get current camp # from current working directory
+	(getcwd) =~ m{/camp(\d+)} and $camp = $1;
+}
+
+unless (defined($camp)) {
+	die "Please specify a camp #\n";
+}
+
+my $port = 8900 + $camp;
+
+$ENV{PGUSER} ||= 'citypass';
+$ENV{PGDATABASE} ||= 'citypass';
+
+exec '/usr/bin/psql', '-p', $port, @ARGV;

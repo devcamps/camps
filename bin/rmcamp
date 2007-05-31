@@ -1,0 +1,100 @@
+#!/usr/local/bin/perl
+
+# remove camp script
+
+use strict;
+use warnings;
+no warnings 'uninitialized';
+use Getopt::Long;
+use DBI;
+
+our $camp_home = '/home/camp';
+
+my %conf;
+GetOptions(
+	\%conf,
+	qw(
+		number=i
+	)
+);
+
+
+#
+# Verify user information and get home directory
+#
+
+$conf{user} ||= getpwuid($<);
+my $uid;
+($uid, $conf{root}) = (getpwnam($conf{user}))[2,7];
+die "invalid user name\n" if $uid == 0;
+die "missing home directory!\n" if !$conf{root};
+die "invalid home directory!\n" if $conf{root} =~ /\.\./ or $conf{root} eq '/';
+
+
+#
+# Verify the camp exists and is owned by this user
+#
+
+print "Connecting to camp database\n";
+
+our $dbh_master = DBI->connect(
+	"dbi:Pg:dbname=camp;host=localhost;port=5432",
+	'camp',
+	'coop-day-tah',
+	{ RaiseError => 1, AutoCommit => 1 }
+);
+
+my $stha = $dbh_master->prepare("SELECT username, name, email FROM camp_users WHERE username = ?");
+$stha->execute($conf{user});
+my $row = $stha->fetchrow_hashref;
+die "user '$conf{user}' is unknown; aborting\n"
+	unless $row->{username};
+die "only user '$row->{username}' ($row->{name}) can delete his camp\n"
+	unless $conf{user} eq $row->{username};
+
+unless ($conf{number} and $conf{number} =~ /^\d+$/) {
+	die "please specify number of camp to delete\n";
+}
+
+
+#
+# Flesh out derived configuration
+#
+
+$conf{name} = "camp$conf{number}";
+$conf{path} = $conf{root} . '/' . $conf{name};
+
+
+#
+# Stop the camp
+#
+
+chdir $conf{root} or die "couldn't chdir $conf{root}: $!\n";
+
+do_system("$camp_home/bin/re --stop $conf{number}");
+
+
+#
+# Nuke it!
+#
+
+do_system("rm -rf $conf{path}");
+
+print "Removing camps entry from database\n";
+$dbh_master->do("DELETE FROM camps WHERE camp_number = $conf{number}");
+
+print "Done deleting $conf{name}\n";
+
+
+END {
+	$dbh_master->disconnect if $dbh_master;
+}
+
+
+sub do_system {
+	my ($cmd) = @_;
+	print $cmd, $/;
+	my $exit = system($cmd) >> 8;
+	die "Error! Exit code = $exit\n" unless $exit == 0;
+	return;
+}

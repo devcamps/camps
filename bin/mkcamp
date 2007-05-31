@@ -1,0 +1,143 @@
+#!/usr/local/bin/perl
+
+# new camp creation script
+
+use strict;
+use warnings;
+use Getopt::Long;
+use lib '/home/camp/lib';
+use Camp::Master;
+use Data::Dumper;
+
+*STDOUT->autoflush(1);
+*STDERR->autoflush(1);
+
+die "Don't run this as root!\n" if $< == 0;
+
+my %opt;
+GetOptions(
+	\%opt,
+	qw(
+		comment=s
+		number=i
+		replace!
+		skipdb
+		skipcamp
+		help
+		type=s
+	)
+);
+
+if ($opt{help}) {
+	print <<'EOH';
+Usage: mkcamp --comment="comments here" [options]
+
+Options:
+
+--number=N  Specify the camp number to be made; do not automatically
+            determine it.
+
+--skipdb    Skip database creation.
+
+--skipcamp  Do not add this camp to the database. Requires --number.
+
+--help      This help screen
+
+--type      The type of camp to be made; required.
+EOH
+	exit;
+}
+
+die "No type specified!\n" unless defined $opt{type};
+
+initialize(
+    type => $opt{type},
+    user => $<,
+);
+
+die "comment is required; run with --help for more info\n"
+	unless $opt{comment} or $opt{skipcamp};
+
+
+#
+# Get camp # and verify everything's ok with camp database
+#
+
+unless ($opt{number} and $opt{number} =~ /^\d+$/) {
+	if ($opt{skipcamp}) {
+		die "number must be specified if skipping camp accounting\n";
+	}
+    $opt{number} = get_next_camp_number();
+}
+
+# initialize the configuration hash
+my $conf = config_hash( $opt{number} );
+print "Configuration hash:\n", Dumper($conf);
+
+#
+# Make the camp directory
+#
+create_camp_path( $conf->{number}, $opt{replace}, );
+
+#
+# Add to camp database
+#
+unless ($opt{skipcamp}) {
+    register_camp( $opt{comment} );
+}
+
+#
+# Check out bulk of files from Subversion
+#
+svn_checkout();
+
+#
+# Must prepare database before installing templates; do so now.
+#
+prepare_database( $opt{replace} ) unless $opt{skipdb};
+
+#
+# Substitute tokens in config files
+#
+install_templates();
+
+#
+# Prepare appserver(s)
+#
+prepare_ic();
+prepare_rails();
+
+#
+# Create Apache files
+#
+prepare_apache();
+
+#
+# Restart facilities
+#
+if ($opt{skipdb}) {
+	print <<'END';
+
+Of course, you specified --skipdb, so there may be no database, and
+Interchange is not running. It's up to you to deal with that.
+END
+}
+else {
+
+    server_control(
+        service => 'all',
+        action  => 'restart',
+    );
+#	do_system(base_path() . "/bin/re --all $conf->{number}");
+}
+
+
+if ($opt{skipcamp}) {
+	print <<'END';
+
+You specified --skipcamp, so there has been no accounting of this camp
+instance in the camps table in the camp database. Please deal with that
+however is appropriate.
+END
+}
+

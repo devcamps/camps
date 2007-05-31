@@ -1,0 +1,70 @@
+#!/usr/local/bin/perl
+
+use strict;
+use warnings;
+use Getopt::Long;
+use Cwd;
+use lib '/home/camp/lib';
+use Camp::Master;
+
+die "Don't run this as root!\n" if $> == 0;
+
+my %conf;
+GetOptions(
+	\%conf,
+	qw(
+		db
+		svn
+	),
+);
+
+my $camp_number;
+if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
+	$camp_number = shift;
+}
+
+unless ($camp_number) {
+	# if not specified, get current camp # from current working directory
+	(getcwd) =~ m{/camp(\d+)} and $camp_number = $1;
+}
+
+if (!defined($camp_number) or $conf{db} && $conf{svn}) {
+	die <<'EOF';
+camp refresh script
+
+Usage: refresh-camp [--db|--svn] [#]
+
+Updates the requested camp, which is specified by [#] in the call or determined
+by the current working directory.
+
+By default, both the database and the application (via svn update) are refreshed.
+However, if --db is specified, only the database is refreshed.  If --svn is specified,
+only the svn update takes place.  Specifying both results in an error.
+
+EOF
+}
+
+initialize(
+	camp => $camp_number,
+);
+
+die "You are not the owner of camp $camp_number!\n"
+	if $< != camp_user_obj()->uid()
+;
+
+if (! $conf{db}) {
+	print "Updating from repository...\n";
+	svn_update();
+}
+
+if (! $conf{svn}) {
+	print "Rebuilding camp database...\n";
+	prepare_database( 1 );
+}
+
+server_control(
+	action	=> 'restart',
+	service	=> 'all',
+);
+
+exit(0);

@@ -1,0 +1,240 @@
+#!/usr/local/bin/perl
+
+# new camp database script
+
+use strict;
+use warnings;
+use Getopt::Long;
+use lib '/home/camp/lib';
+use Camp::Master;
+
+*STDOUT->autoflush(1);
+*STDERR->autoflush(1);
+
+die "Don't run this as root!\n" if $< == 0;
+
+my $camp_home = '/home/camp';
+
+my %conf;
+GetOptions(
+	\%conf,
+	qw(
+		number=s
+		replace!
+	)
+);
+
+no warnings 'uninitialized';
+my ($camp_number) = $conf{number} =~ /^(\d+)$/;
+use warnings 'uninitialized';
+
+unless (defined $camp_number) {
+    die <<'EOF';
+mkcampdb script
+
+Usage: mkcampdb [--replace] --number=$x
+EOF
+}
+
+# Configuration for this development environment
+my $pghost = 'localhost';
+my $pgport = 8900 + $camp_number;
+my $source_dump = "$camp_home/dbdump/tmp/citypass.pg_dump";
+my $dbname = 'citypass';
+my @dbroles = (
+	{
+		user => 'citypass',
+		sql => q{
+			CREATE ROLE $user LOGIN INHERIT
+			NOSUPERUSER NOCREATEROLE NOCREATEDB
+			ENCRYPTED PASSWORD '$pass'
+		},
+	},
+	{
+		user => 'citypass_ups',
+		sql => q{
+			CREATE ROLE $user LOGIN INHERIT CONNECTION LIMIT 5
+			NOSUPERUSER NOCREATEROLE NOCREATEDB
+			ENCRYPTED PASSWORD '$pass'
+		},
+	},
+);
+# End of local configuration
+
+my $cmd;
+
+# Does this camp already exist, as it should?
+my $camp_name = "camp$camp_number";
+my $base = "$ENV{HOME}/$camp_name";
+unless (-d $base) {
+	warn "$camp_name doesn't appear to have ever been created; must create it first\n";
+	exit 2;
+}
+
+# Does this database already exist?
+my $camp_dbdir = "$base/pgsql";
+my $pgdata = "$camp_dbdir/data";
+if (-d $camp_dbdir) {
+	unless ($conf{replace}) {
+		warn "Database already exists in $camp_dbdir; must use --replace to overwite it\n";
+		exit 2;
+	}
+	# Is there already a Postgres server running for this camp?
+	$cmd = "pg_ctl status -D $pgdata";
+	if (system($cmd) == 0) {
+		# Stop running Postgres
+		$cmd = "pg_ctl stop -D $pgdata -m fast";
+		system($cmd) == 0 or die "Error stopping running Postgres instance\n";
+	}
+	# Remove old database's binary data
+	rmtree([$camp_dbdir], 0, 1);
+}
+mkdir $camp_dbdir or die "Could not mkdir $camp_dbdir: $!\n";
+
+unless (-d $pgdata) {
+	mkdir $pgdata or die "Couldn't mkdir $pgdata: $!\n";
+}
+
+# Create tmp/ directory for logs etc. that won't be backed up
+my $pgtmp = "$camp_dbdir/tmp";
+unless (-d $pgtmp) {
+	mkdir $pgtmp or die "Couldn't mkdir $pgtmp: $!\n";
+}
+
+# Read any existing ~/.pgpass file
+my $pass_file = "$ENV{HOME}/.pgpass";
+my $old_pass = '';
+if (-f $pass_file) {
+	local @ARGV = $pass_file;
+	open my $in, '<', $pass_file or die "Can't read $pass_file: $!\n";
+	while (<$in>) {
+		next if /^$pghost:$pgport:/;
+		$old_pass .= $_;
+	}
+	close $in or die "Couldn't close $in: $!\n";
+}
+
+# Create new passwords and add to ~/.pgpass
+my $postgres_pass = generate_nice_password();
+{
+	my $pass_file_tmp = "$pass_file.work";
+	open my $out, '>', $pass_file_tmp
+		or die "Can't write $pass_file_tmp: $!\n";
+	chmod 0600, $pass_file_tmp
+		or die "Couldn't chmod $pass_file_tmp: $!\n";
+	print {$out} "$pghost:$pgport:*:postgres:$postgres_pass\n";
+	for my $role (@dbroles) {
+		my $pass = $role->{pass} ||= generate_nice_password();
+		print {$out} "$pghost:$pgport:$dbname:$role->{user}:$pass\n";
+	}
+	print {$out} $old_pass;
+	close $out or die "Couldn't close $out: $!\n";
+	rename $pass_file_tmp, $pass_file
+		or die "Couldn't rename $pass_file_tmp to $pass_file: $!\n";
+}
+
+# Run initdb to make new database cluster
+my $tmp = File::Temp->new(
+	UNLINK => 0,
+);
+$tmp->print($postgres_pass . "\n");
+$tmp->close;
+$cmd = "initdb -D $pgdata -n -E SQL_ASCII --locale=C -U postgres --pwfile=$tmp -A md5";
+system($cmd) == 0 or die "Error executing initdb\n";
+unlink $tmp or die "Error unlinking $tmp: $!\n";
+
+# Add camp-specific configuration
+my $pgconf = "$pgdata/postgresql.conf";
+my $pglogdir = "$pgdata/tmp";
+my $pglog = "$pglogdir/postgresql.log";
+{
+	open my $out, '>>', $pgconf or die "Could not append to file $pgconf: $!\n";
+	print {$out} <<EOS;
+
+
+#
+# camp setup
+#
+listen_addresses = '*'
+port = $pgport
+max_connections = 16
+ssl = off
+shared_buffers = 200
+temp_buffers = 200
+work_mem = 128
+maintenance_work_mem = 1024
+max_fsm_pages = 3500
+max_fsm_relations = 200
+effective_cache_size = 1000
+log_destination = 'stderr'
+log_directory = '$pgtmp'
+log_connections = on
+log_disconnections = on
+log_duration = on
+log_statement = 'all'
+log_hostname = off
+stats_command_string = on
+EOS
+	close $out or die "Couldn't close $pgconf: $!\n";
+}
+
+# Start Postgres on new cluster
+$cmd = "pg_ctl start -D $pgdata -l $pgtmp/pgstartup.log -w";
+system($cmd) == 0 or die "Error starting Postgres on new cluster\n";
+
+# Create regular database roles
+$cmd = "psql -p $pgport -U postgres -d postgres";
+print "Command: $cmd\n";
+open my $psql, "| $cmd"
+	or die "Error opening pipe to psql: $!\n";
+for my $role (@dbroles) {
+	my $sql = $role->{sql};
+	# XXX not dealing with quoting of interpolated values here ... not needed now
+	$sql =~ s/\$$_\b/$role->{$_}/eg for keys %$role;
+	print "SQL: $sql\n";
+	print {$psql} $sql, "\n;\n";
+}
+close $psql or die "Error piping command to psql: $!\n";
+
+# Import data
+$cmd = "psql -p $pgport -U postgres -d postgres -f $source_dump";
+system($cmd) == 0 or die "Error importing data\n";
+
+print "All done!\n";
+
+
+sub generate_nice_password {
+	my @v = qw( a e i o u );
+	my @c = qw( b d f g h j k m n p r s t v w z );  # no l, y
+	my @c2 = (@c, qw( c q x ));
+	my @d = (2..9);   # no 0, 1
+
+	my $did_numbers = 0;
+	my $did_letters = 0;
+	my $last_numbers;
+	my $pass = '';
+	for (1..3) {
+		my $l = rand(10) > 7;
+		if ($last_numbers) {
+			$l = 1;
+		}
+		elsif ($_ > 2) {
+			undef $l if ! $did_numbers;
+			$l = 1 if ! $did_letters;
+		}
+		if ($l) {
+			$pass .= $c[rand @c] . $v[rand @v];
+			$pass .= $c2[rand @c2] if rand(10) > 5;
+			++$did_letters;
+			undef $last_numbers;
+		}
+		else {
+			$pass .= $d[rand @d];
+			$pass .= $d[rand @d] if rand(10) > 3;
+			++$did_numbers;
+			$last_numbers = 1;
+		}
+		redo if $_ > 2 and length($pass) < 8;
+	}
+	return $pass;
+}

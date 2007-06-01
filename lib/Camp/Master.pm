@@ -23,6 +23,8 @@ use base qw(Exporter);
     camp_list
     has_rails
     has_ic
+    camp_db_type
+    camp_db_config
     create_camp_path
     prepare_camp
     prepare_ic
@@ -63,6 +65,7 @@ my (
     $dbh,
     $conf_hash,
     $roles,
+    $camp_db_config,
 );
 
 @base_edits = qw(
@@ -76,6 +79,7 @@ sub initialize {
         $initialized
             = $conf_hash = $has_rails = $has_ic = $type
             = $camp_user = $camp_user_info = $roles
+            = $camp_db_config
             = undef;
         @edits = %edits = ();
         $conf_hash = undef;
@@ -126,6 +130,34 @@ sub read_camp_config {
     %edits = map { $_ => 1, } @edits;
     $has_rails = $has_ic = undef;
     return @edits;
+}
+
+sub camp_db_type {
+    my %settings = camp_db_config();
+    my $dsn = $settings{dsn};
+    die "The camp database config file must specify a DSN!\n" unless defined $dsn;
+    my ($type) = $dsn =~ /^dbi:([^\s:]+):/i;
+    die "The camp database DSN appears to be invalid: $dsn\n" unless defined $type;
+    return lc $type;
+}
+
+sub camp_db_config {
+    return %$camp_db_config if defined $camp_db_config;
+    my $file = File::Spec->catfile( base_path(), 'camp-db-config' );
+    die "No camp database configuration found ($file)!\n"
+        unless -f $file
+    ;
+    open my $FILE, '<', $file or die "Failed to open $file to determine camp db type: $!\n";
+    while (<$FILE>) {
+        next if /^\s*#/ or !/\S/;
+        chomp;
+        my ($key, $val) = /^\s*(\S+?):(.*?)\s*$/;
+        die "Invalid key/value pair in $file at line $.!: $_\n" unless defined $key;
+        ${ $camp_db_config ||= {} }{$key} = $val;
+    }
+    close $FILE;
+    die "No settings found in $file for camp db access!\n" unless defined $camp_db_config and %$camp_db_config;
+    return %$camp_db_config;
 }
 
 sub validate_type {
@@ -187,10 +219,15 @@ sub base_user {
 
 sub dbh {
     return $dbh if defined $dbh;
+    my %settings = camp_db_config();
+    my ($dsn, $user, $pass) = @settings{qw( dsn user password )};
+    die "Must specify a DSN and user to access camp database!\n"
+        unless defined $dsn and defined $user
+    ;
     $dbh = DBI->connect(
-        'dbi:Pg:dbname=camp;host=localhost;port=5432',
-        'camp',
-        'p1gletz',
+        $dsn,
+        $user,
+        $pass,
         {
             RaiseError => 1,
             AutoCommit => 1,

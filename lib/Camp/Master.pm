@@ -295,7 +295,19 @@ sub camp_user_info {
     return $camp_user_info;
 }
 
+sub _db_type_dispatcher {
+    my $name = shift;
+    my $type = camp_db_type();
+    my $sub = __PACKAGE__->can( "_${name}_$type" );
+    die "No function $name for database type $type!\n" unless $sub;
+    return $sub;
+}
+
 sub get_next_camp_number {
+    return _db_type_dispatcher( 'get_next_camp_number' )->( @_ );
+}
+
+sub _get_next_camp_number_pg {
     my $db = dbh();
     my $sth_chk = $db->prepare(q{SELECT camp_number FROM camps WHERE camp_number = ?});
     my ($count, $camp,);
@@ -307,6 +319,20 @@ sub get_next_camp_number {
     die "Infinite loop while fetching camp number!\n";
 }
 
+sub _get_next_camp_number_mysql {
+    my $db = dbh();
+    my ($count) = $db->selectrow_array(q{SELECT COUNT(*) FROM camps WHERE camp_number > 0});
+    return 1 unless $count;
+    my ($id) = $db->selectrow_array(<<'SQL');
+SELECT MIN( cn.number )
+FROM camp_numbers cn
+LEFT JOIN camps c
+    ON cn.number = c.camp_number
+WHERE c.camp_number IS NULL
+SQL
+    return $id;
+}
+
 sub substitute_hash_tokens {
     my ($string, $hash, $prefix) = @_;
     $prefix = defined($prefix) ? $prefix : 'CAMP';
@@ -316,6 +342,48 @@ sub substitute_hash_tokens {
         $string =~ s/__${token}__/$val/g;
     }
     return $string;
+}
+
+sub _config_hash_db {
+    my ($hash, $camp_number) = shift;
+    _determine_db_type_and_path( $hash ) or die "Failed to determine database type!\n";
+    $hash->{db_host}       = 'localhost';
+    $hash->{db_port}       = 8900 + $camp_number;
+    $hash->{db_encoding}   = 'UTF-8',
+#    $hash->{db_locale}     = undef; 
+    $hash->{db_data}       = File::Spec->catfile( $hash->{db_path}, 'data', );
+    $hash->{db_tmpdir}     = File::Spec->catfile( $hash->{db_path}, 'tmp', );
+
+    if ($hash->{db_type} eq 'pg') {
+        $hash->{db_log}        = File::Spec->catfile( $hash->{db_tmpdir}, 'postgresql.log', );
+        $hash->{db_conf}       = File::Spec->catfile( $hash->{db_data}, 'postgresql.conf', );
+    }
+    elsif ($hash->{db_type} eq 'mysql') {
+        # mysql
+        $hash->{db_log}        = File::Spec->catfile( $hash->{db_tmpdir}, 'mysql.log', );
+        $hash->{db_conf}       = File::Spec->catfile( $hash->{path}, 'my.cnf', );
+    }
+    else {
+        die "Unknown database type!\n";
+    }
+}
+
+sub _determine_db_type_and_path {
+    my $conf = shift;
+    my %paths = qw(
+        pgsql   pg
+        mysql   mysql
+    );
+
+    my @found = grep { -d File::Spec->catfile( type_path(), $_ ) } keys %paths;
+    die "Found more than one database type; only one may be used!\n"
+        if @found > 1;
+    die "No database found for camp type!\n"
+        if !@found;
+    $conf->{db_path} = File::Spec->catfile( $conf->{path}, $found[0] );
+    $conf->{db_type} = $paths{$found[0]};
+printf STDERR "_determine_db_type_and_path() type '%s' path '%s'\n", $conf->{db_type}, $conf->{db_path};
+    return $conf->{db_type};
 }
 
 sub config_hash {
@@ -349,15 +417,9 @@ sub config_hash {
                 (0..4)
             );
         }
-        $conf_hash->{pg_host}       = 'localhost';
-        $conf_hash->{pg_port}       = 8900 + $camp_number;
-        $conf_hash->{pg_path}       = File::Spec->catfile( $conf_hash->{path}, 'pgsql', );
-        $conf_hash->{pg_encoding}   = 'UTF-8',
-#        $conf_hash->{pg_locale}     = undef; 
-        $conf_hash->{pg_data}       = File::Spec->catfile( $conf_hash->{pg_path}, 'data', );
-        $conf_hash->{pg_tmpdir}     = File::Spec->catfile( $conf_hash->{pg_path}, 'tmp', );
-        $conf_hash->{pg_log}        = File::Spec->catfile( $conf_hash->{pg_tmpdir}, 'postgresql.log', );
-        $conf_hash->{pg_conf}       = File::Spec->catfile( $conf_hash->{pg_data}, 'postgresql.conf', );
+
+        _config_hash_db( $conf_hash, $camp_number );
+
         $conf_hash->{httpd_path}    = File::Spec->catfile( $conf_hash->{path}, 'httpd', );
         $conf_hash->{httpd_lib_path}    = '/usr/lib/httpd/modules';
         $conf_hash->{httpd_cmd_path}    = '/usr/sbin/httpd';
@@ -391,11 +453,11 @@ sub config_hash {
         $conf_hash->{camp_subdirectories} = [
             split /[\s,]+/, $conf_hash->{camp_subdirectories}
         ];
-        $conf_hash->{pg_source_scripts} = [
-            split /[\s,]+/, $conf_hash->{pg_source_scripts} || ''
+        $conf_hash->{db_source_scripts} = [
+            split /[\s,]+/, $conf_hash->{db_source_scripts} || ''
         ];
-        $conf_hash->{pg_dbnames} = [
-            split /[\s,]+/, $conf_hash->{pg_dbnames} || ''
+        $conf_hash->{db_dbnames} = [
+            split /[\s,]+/, $conf_hash->{db_dbnames} || ''
         ];
         if (has_ic()) {
             die "Must provide catalog linker names within base camp or type local-config!\n"
@@ -438,9 +500,10 @@ INSERT INTO camps (
     camp_number,
     username,
     camp_type,
-    comment
+    comment,
+    create_date
 )
-VALUES (?,?,?,?)
+VALUES (?,?,?,?, CURRENT_TIMESTAMP)
 EOL
     $sth->execute( $conf->{number}, camp_user(), type(), $comment, )
         or die "Failed to register camp $conf->{number} in database!\n"
@@ -586,7 +649,7 @@ sub role_password {
     ;
     if (! $role_hash->{password}) {
         my $config = config_hash();
-        $config->{"pg_role_${role}_pass"}
+        $config->{"db_role_${role}_pass"}
             = $role_hash->{password}
             = generate_nice_password()
         ;
@@ -637,8 +700,8 @@ sub prepare_database {
     my $replace = shift;
     my $conf = config_hash();
     my @roles = roles();
-    my @sources = @{ $conf->{pg_source_scripts} };
-    my @dbnames = @{ $conf->{pg_dbnames} };
+    my @sources = @{ $conf->{db_source_scripts} };
+    my @dbnames = @{ $conf->{db_dbnames} };
 
     die "There are no roles configured for this camp type!  Cannot prepare database.\n"
         unless @roles
@@ -656,29 +719,29 @@ sub prepare_database {
     ;
 
     # check for extant database
-    if (-d $conf->{pg_path}) {
-        die "Database already exists in $conf->{pg_path}; must specify 'replace' to overwrite it.\n"
+    if (-d $conf->{db_path}) {
+        die "Database already exists in $conf->{db_path}; must specify 'replace' to overwrite it.\n"
             unless $replace
         ;
         # check for running Postmaster on this database.
-        if (system("pg_ctl status -D $conf->{pg_data}") == 0) {
+        if (system("pg_ctl status -D $conf->{db_data}") == 0) {
             # stop running postgres
-            system("pg_ctl stop -D $conf->{pg_data} -m fast") == 0
+            system("pg_ctl stop -D $conf->{db_data} -m fast") == 0
                 or die "Error stopping running Postgres instance!\n"
             ;
         }
         # remove old database's binary data.
-        rmtree($conf->{pg_path}, 0, 1,);
+        rmtree($conf->{db_path}, 0, 1,);
     }
 
-    mkdir $conf->{pg_path} or die "Could not make Postgres path '$conf->{pg_path}': $!\n";
-    mkdir $conf->{pg_data} or die "Couldn't make Postgres data path '$conf->{pg_data}': $!\n"
-        unless -d $conf->{pg_data}
+    mkdir $conf->{db_path} or die "Could not make Postgres path '$conf->{db_path}': $!\n";
+    mkdir $conf->{db_data} or die "Couldn't make Postgres data path '$conf->{db_data}': $!\n"
+        unless -d $conf->{db_data}
     ;
 
     # create the tmp/ directory for logs and other stuff that eludes the backup
-    mkdir $conf->{pg_tmpdir} or die "Couldn't make Postgres tmp/ path '$conf->{pg_tmpdir}': $!\n"
-        unless -d $conf->{pg_tmpdir}
+    mkdir $conf->{db_tmpdir} or die "Couldn't make Postgres tmp/ path '$conf->{db_tmpdir}': $!\n"
+        unless -d $conf->{db_tmpdir}
     ;
 
     # Read any existing ~/.pgpass file
@@ -687,17 +750,17 @@ sub prepare_database {
     if (-f $pass_file) {
         open my $IN, '<', $pass_file or die "Can't read $pass_file: $!\n";
         while (<$IN>) {
-            next if /^$conf->{pg_host}:$conf->{pg_port}:/;
+            next if /^$conf->{db_host}:$conf->{db_port}:/;
             $old_pass_data .= $_;
         }
         close $IN or die "Couldn't close $IN: $!\n";
     }
     my $postgres_pass = generate_nice_password();
     my $pass_file_tmp = File::Temp->new( UNLINK => 0, );
-    $pass_file_tmp->print( "$conf->{pg_host}:$conf->{pg_port}:*:postgres:$postgres_pass\n" );
+    $pass_file_tmp->print( "$conf->{db_host}:$conf->{db_port}:*:postgres:$postgres_pass\n" );
     for my $role (@roles) {
         my $pass = role_password( $role );
-        $pass_file_tmp->print("$conf->{pg_host}:$conf->{pg_port}:$_:$role:$pass\n")
+        $pass_file_tmp->print("$conf->{db_host}:$conf->{db_port}:$_:$role:$pass\n")
             for @dbnames
         ;
     }
@@ -712,15 +775,15 @@ sub prepare_database {
     $tmp->print( "$postgres_pass\n" );
     $tmp->close or die "Couldn't close $tmp: $!\n";
     my @args = (
-        "-D $conf->{pg_data}",
+        "-D $conf->{db_data}",
         '-n',
         "-U postgres --pwfile=$tmp -A md5",
     );
-    push @args, "-E $conf->{pg_encoding}"
-        if $conf->{pg_encoding}
+    push @args, "-E $conf->{db_encoding}"
+        if $conf->{db_encoding}
     ;
-    push @args, "--locale=$conf->{pg_locale}"
-        if $conf->{pg_locale}
+    push @args, "--locale=$conf->{db_locale}"
+        if $conf->{db_locale}
     ;
     my $cmd = 'initdb ' . join(' ', @args);
     print "Preparing database cluster:\n$cmd\n";
@@ -735,22 +798,22 @@ sub prepare_database {
         $template,
         {
             map { $_ => $conf->{$_} }
-            grep /^pg_/,
+            grep /^db_/,
             keys %$conf
         },
     );
-    open my $CONF, '>>', $conf->{pg_conf} or die "Could not append to $conf->{pg_conf}: $!\n";
+    open my $CONF, '>>', $conf->{db_conf} or die "Could not append to $conf->{db_conf}: $!\n";
     print $CONF $template;
-    close $CONF or die "Couldn't close $conf->{pg_conf}: $!\n";
+    close $CONF or die "Couldn't close $conf->{db_conf}: $!\n";
 
     # Start Postgres on new cluster
-    my $startlog = File::Spec->catfile( $conf->{pg_tmpdir}, 'pgstartup.log', );
-    system("pg_ctl start -D $conf->{pg_data} -l $startlog -w") == 0
+    my $startlog = File::Spec->catfile( $conf->{db_tmpdir}, 'pgstartup.log', );
+    system("pg_ctl start -D $conf->{db_data} -l $startlog -w") == 0
         or die "Error starting Postgres on new cluster!\n"
     ;
 
     # Create regular database roles
-    $cmd = "psql -p $conf->{pg_port} -U postgres -d postgres";
+    $cmd = "psql -p $conf->{db_port} -U postgres -d postgres";
     print "Command: $cmd\n";
     open my $PSQL, "| $cmd"
         or die "Error opening pipe to psql: $!\n"
@@ -765,7 +828,7 @@ sub prepare_database {
     # Import data
     for my $script (@sources) {
         my $script_file = File::Spec->catfile( type_path(), $script, );
-        $cmd = "psql -p $conf->{pg_port} -U postgres -d postgres -f $script_file";
+        $cmd = "psql -p $conf->{db_port} -U postgres -d postgres -f $script_file";
         print "Processing script '$script':\n$cmd\n";
         system($cmd) == 0 or die "Error importing data\n";
     }
@@ -904,11 +967,11 @@ sub ic_control {
 sub pg_control {
     my $action = shift;
     my $conf = config_hash();
-    die "Need pg_data definition!\n"
-        unless defined $conf->{pg_data}
-        and $conf->{pg_data} =~ /\S/
+    die "Need db_data definition!\n"
+        unless defined $conf->{db_data}
+        and $conf->{db_data} =~ /\S/
     ;
-    do_cmd_soft("pg_ctl -D $conf->{pg_data} -l $conf->{pg_tmpdir}/pgstartup.log -m fast -w $action") == 0
+    do_cmd_soft("pg_ctl -D $conf->{db_data} -l $conf->{db_tmpdir}/pgstartup.log -m fast -w $action") == 0
         and return 1
     ;
     return undef;

@@ -65,11 +65,11 @@ exec($cmd);
 
 =head1 NAME
 
-camp_mysql -- a utility for invoking the mysql client for a camp mysql instance
+mysql_camp -- a utility for invoking the mysql client for a camp mysql instance
 
 =head1 SYNOPSIS
 
- camp_mysql [options]
+ mysql_camp [options]
 
 Invokes the standard mysql client shell, with appropriate connection parameters for working with your camp database.
 
@@ -121,10 +121,10 @@ This help information.
 
 The camp system makes access to databases a bit tricky, since each camp's database (in this case, MySQL) listens on an
 alternate port or socket file, with each user account having custom, random passwords rather than consistent, known
-passwords.  Therefore, the camp_mysql script is intended to simplify this, such that you may get to the mysql client
+passwords.  Therefore, the mysql_camp script is intended to simplify this, such that you may get to the mysql client
 for your database painlessly without needing to know the custom port/socket, etc.
 
-Use the camp_mysql script whenever you would ordinarily use mysql directly, paying attention to the three simple options
+Use the mysql_camp script whenever you would ordinarily use mysql directly, paying attention to the three simple options
 outlined above.  Any additional arguments or options provided will be passed along to the underlying mysql call, but
 use these at your own risk; you may result in collisions with the options the utility automatically generates for you.
 

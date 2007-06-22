@@ -49,6 +49,7 @@ use base qw(Exporter);
     mysql_path
     db_path
     server_control
+    process_copy_paths
 );
 
 my (
@@ -126,6 +127,7 @@ sub read_camp_config {
         s/^\s+//;
         s/\s+$//;
         next unless /\S/;
+        next if /^\s*#/;
         push @edits, $_;
     }
     close $CONFIG;
@@ -178,6 +180,147 @@ sub base_path {
 sub type_path {
     my $local_type = @_ ? shift : type();
     return File::Spec->catfile( base_path(), $local_type, );
+}
+
+sub copy_paths_config_path {
+    return File::Spec->catfile( type_path(), 'copy-paths.yml' );
+}
+
+=pod
+
+=head1 COPY PATHS CONFIGURATION
+
+Your camp type may specify arbitrary paths that should be copied/symlinked into camp instances
+via the copy-paths.yml file.  As the extension suggests, this is expected to be a YAML file.
+
+The structure of the file is as follows:
+
+=over
+
+=item *
+
+Each path to copy (file or directory, it matters not) gets a "document" within the YAML structure.
+This essentially means that you start each path's entry with the standard "---" YAML document
+header.  The result of this is that Camp::Master sees the path entries as an array.
+
+=item *
+
+Each path entry is a hash.  Each path hash B<must> provide the following key/value pairs:
+
+=over
+
+=item I<source>
+
+The source path to copy from.  This can be relative to the camp type path, or absolute.
+
+=item I<target>
+
+The target path to copy to.  This is always relative to the camp instance base.
+
+=back
+
+In addition, the following optional items may be provided:
+
+=over
+
+=item I<default_link>
+
+If provided with a Perly true value (non-blank, non-zero), the I<target> will be created
+as a symlink to I<source> rather than a full copy.  This is sensible for large docroots,
+image directories, etc.
+
+If left unspecified for a given path, this effectively defaults to false.
+
+=item I<always>
+
+If provided with a Perly true value (non-blank, non-zero), the default behavior determined
+by I<default_link> is always used and the camp creator isn't given a choice in the matter.
+
+=back
+
+=back
+
+Because the YAML stream is converted to an array, the paths are processed in order of specification
+within the stream.  Therefore, you can have dependencies between paths and they'll work out as
+long as you arrange them in the proper order in the file.
+
+When a new camp instance is created, each path is processed in order.  Per path, the camp creator is
+offered the opportunity to specify whether the camp should receive a full copy or a symlink of the
+source path in question; the default response will be noted based on the I<default_link> setting
+for that path.  However, if the I<always> option is set for the path, the user is not given the
+choice and the default simple happens automatically.
+
+Here's an example of a file:
+
+=over
+
+ # The /var/www/html docroot will be symlinked to $camp/htdocs by default,
+ # but the user is given the choice to override with a copy.
+ ---
+ source: /var/www/html
+ target: htdocs
+ default_link: 1
+ # The /var/cgi-bin/foo.com script directory will by copied (since no default_link
+ # is specified) by default to $camp/cgi-bin.  The user is given the choice to
+ # symlink instead.
+ ---
+ source: /var/cgi-bin/foo.com
+ target: cgi-bin
+ # The /var/www/image_repository is symlinked to $camp/image_repository; the user
+ # is not given a choice about this, because always is set.
+ ---
+ source: /var/www/image_repository
+ target: image_repository
+ default_link: 1
+ always: 1
+
+=back
+
+=cut
+
+sub process_copy_paths {
+    my ($defaults_only) = @_;
+    my $conf = config_hash();
+    my $file = copy_paths_config_path();
+    if (! -f $file) {
+        print "No copy-paths file to process.\n";
+        return;
+    }
+    use_yaml();
+    my @data = parse_yaml( $file );
+    if (! @data) {
+        print "No copy-paths entries found in copy-paths file.\n";
+        return;
+    }
+
+    die "The copy-paths data structures are invalid; only hashes are allowed within the array!\n"
+        if grep { !( ref($_) eq 'HASH' and defined($_->{source}) and defined($_->{target}) ) } @data
+    ;
+
+    for my $copy (@data) {
+        my $link = defined($copy->{default_link}) && $copy->{default_link};
+        my $src = $copy->{source};
+        my $target = $copy->{target};
+        $src = File::Spec->catfile( type_path(), $src ) if ! File::Spec->file_name_is_absolute($src);
+        $target = File::Spec->catfile( $conf->{path}, $target );
+        if (!$defaults_only and !( defined($copy->{always}) && $copy->{always} )) {
+            my $decision;
+            while (!defined($decision) or $decision !~ /^\s*([yn]?)\s*$/i) {
+                printf "Do you want to copy $src to $target (if no, symlinks are used)? y/n (%s) ", $link ? 'n' : 'y';
+                $decision = <STDIN>;
+            }
+            $link = $1 eq 'n' if $1;
+        }
+        if ($link) {
+            print "Symlinking $target to $src.\n";
+            symlink($src, $target) or die "Failed to symlink: $!\n";
+        }
+        else {
+            print "Copying $src to $target.\n";
+            system("cp -a $src $target") == 0 or die "Failed to copy: $!\n";
+        }
+    }
+    return @data;
 }
 
 sub db_path {
@@ -1203,19 +1346,25 @@ sub server_control {
     );
 
     my %services = (
-        rails   => \&rails_control,
-        ic      => \&ic_control,
-        pg      => \&_db_control_pg,
-        mysql   => \&_db_control_mysql,
         db      => \&db_control,
         httpd   => \&httpd_control,
     );
 
-    delete $services{ic} unless has_ic();
-    delete $services{rails} unless has_rails();
+    my %db_services = (
+        pg      => \&_db_control_pg,
+        mysql   => \&_db_control_mysql,
+    );
+
+    my $dbtype = camp_db_type();
+    $services{ic}       = \&ic_control if has_ic();
+    $services{rails}    = \&rails_control if has_rails();
+    $services{$dbtype}  = $db_services{$dbtype};
+
     my @services = grep { defined $services{$_} } qw(
         httpd
         pg
+        mysql
+        db
         ic
         rails
     );
@@ -1223,7 +1372,7 @@ sub server_control {
     die "Invalid action '$action' specified!\n" unless $actions{$action};
     my @services_to_start;
     if ($service eq 'all') {
-        @services_to_start = @services;
+        @services_to_start = grep !defined($db_services{$_}), @services;
     }
     else {
         die "Invalid service '$service' specified!\n" unless $services{$service};

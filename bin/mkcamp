@@ -97,6 +97,11 @@ svn_checkout();
 prepare_database( $opt{replace} ) unless $opt{skipdb};
 
 #
+# Perform simple copy/symlink operations
+#
+process_copy_paths();
+
+#
 # Substitute tokens in config files
 #
 install_templates();

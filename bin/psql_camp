@@ -1,10 +1,12 @@
-#!/usr/bin/perl
+#!/usr/local/bin/perl
 
 # camp psql helper
 
 use strict;
 use warnings;
+use lib '/home/camp/lib';
 use Cwd;
+use Camp::Master;
 
 my $camp;
 
@@ -15,16 +17,23 @@ if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
 
 unless ($camp) {
 	# if not specified, get current camp # from current working directory
-	(getcwd) =~ m{/camp(\d+)} and $camp = $1;
+	my $dir = getcwd();
+	die "current working directory doesn't exist!\n" unless $dir;
+	$dir =~ m{/camp(\d+)} and $camp = $1;
 }
 
 unless (defined($camp)) {
 	die "Please specify a camp #\n";
 }
 
-my $port = 8900 + $camp;
+initialize(
+	camp => $camp,
+);
 
-$ENV{PGUSER} ||= 'citypass';
-$ENV{PGDATABASE} ||= 'citypass';
+my $conf = config_hash();
+my $port = $conf->{db_port};
+
+$ENV{PGUSER} ||= $conf->{db_default_user};
+$ENV{PGDATABASE} ||= $conf->{db_default_database};
 
 exec '/usr/bin/psql', '-p', $port, @ARGV;

@@ -25,44 +25,58 @@ GetOptions(
 		skipcamp
 		help
 		type=s
+		vcs=s
 	)
 );
 
 if ($opt{help}) {
-	print <<'EOH';
+	my $types;
+    eval {
+		$types = join '', map { <<EOL } camp_type_list();
+            $_->{type}: $_->{description}
+EOL
+	};
+	$types = "Could not find types: $@" if $@;
+	print <<EOH;
 Usage: mkcamp --comment="comments here" [options]
 
 Options:
 
---number=N  Specify the camp number to be made; do not automatically
-            determine it.
+--comment   Required comment explaining the purpose of this new camp.
 
---skipdb    Skip database creation.
+--number    Specify the camp number to be made instead of automatically
+            determining it.
 
 --skipcamp  Do not add this camp to the database. Requires --number.
 
---help      This help screen
+--skipdb    Skip database creation.
+
+--vcs       Specify version control system to use for working copy checkout.
+            Options are "svn" (default) and "svk".
 
 --type      The type of camp to be made; required.
+            Available types are:
+$types
+
+--help      This help screen
 EOH
 	exit;
 }
 
 die "No type specified!\n" unless defined $opt{type};
 
-initialize(
-    type => $opt{type},
-    user => $<,
-);
-
 die "comment is required; run with --help for more info\n"
 	unless $opt{comment} or $opt{skipcamp};
 
+$opt{vcs} ||= 'svn';
 
-#
+initialize(
+    type => $opt{type},
+	vcs_type => $opt{vcs},
+    user => $<,
+);
+
 # Get camp # and verify everything's ok with camp database
-#
-
 unless ($opt{number} and $opt{number} =~ /^\d+$/) {
 	if ($opt{skipcamp}) {
 		die "number must be specified if skipping camp accounting\n";
@@ -74,66 +88,41 @@ unless ($opt{number} and $opt{number} =~ /^\d+$/) {
 my $conf = config_hash( $opt{number} );
 print "Configuration hash:\n", Dumper($conf);
 
-#
-# Make the camp directory
-#
-create_camp_path( $conf->{number}, $opt{replace}, );
-
-#
 # Add to camp database
-#
-unless ($opt{skipcamp}) {
-    register_camp( $opt{comment} );
-}
+register_camp($opt{comment}) unless ($opt{skipcamp});
 
-#
-# Check out bulk of files from Subversion
-#
-svn_checkout();
+# Check out bulk of files from version control repository
+vcs_checkout();
 
-#
 # Must prepare database before installing templates; do so now.
-#
 prepare_database( $opt{replace} ) unless $opt{skipdb};
 
-#
 # Perform simple copy/symlink operations
-#
 process_copy_paths();
 
-#
 # Substitute tokens in config files
-#
 install_templates();
 
-#
 # Prepare appserver(s)
-#
 prepare_ic();
 prepare_rails();
 
-#
 # Create Apache files
-#
 prepare_apache();
 
-#
-# Restart facilities
-#
+# (Re)start facilities
 if ($opt{skipdb}) {
 	print <<'END';
 
 Of course, you specified --skipdb, so there may be no database, and
-Interchange is not running. It's up to you to deal with that.
+your app server is not running. It's up to you to deal with that.
 END
 }
 else {
-
     server_control(
         service => 'all',
         action  => 'restart',
     );
-#	do_system(base_path() . "/bin/re --all $conf->{number}");
 }
 
 

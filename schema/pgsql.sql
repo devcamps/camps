@@ -22,6 +22,11 @@ CREATE TABLE camp_types (
 	description	TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE vcs_types (
+	vcs_type character varying(32) NOT NULL,
+	description text DEFAULT ''::text NOT NULL
+);
+
 CREATE TABLE camps (
 	camp_number	INTEGER PRIMARY KEY DEFAULT NEXTVAL('camp_number'),
 	username	VARCHAR(32) NOT NULL
@@ -33,8 +38,17 @@ CREATE TABLE camps (
 				REFERENCES camp_types
 				ON UPDATE CASCADE ON DELETE CASCADE,
 	create_date	TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-	"comment"	TEXT NOT NULL DEFAULT ''
+	"comment"	TEXT NOT NULL DEFAULT '',
+	vcs_type	VARCHAR(32) NOT NULL
+				CONSTRAINT camps_vcs_type_fk
+				REFERENCES vcs_types
+				ON UPDATE CASCADE ON DELETE CASCADE
 );
+
+COPY vcs_types (vcs_type, description) FROM stdin;
+svn	Subversion
+svk	SVK
+\.
 
 /* Add COPY statements for your environment here, setting up users, camp types, etc. */
 

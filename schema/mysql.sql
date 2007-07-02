@@ -1,5 +1,6 @@
 DROP TABLE camp_numbers;
 DROP TABLE camps;
+DROP TABLE vcs_types;
 DROP TABLE camp_users;
 DROP TABLE camp_types;
 
@@ -15,6 +16,11 @@ CREATE TABLE camp_types (
 	description	TEXT NOT NULL DEFAULT ''
 ) ENGINE=InnoDB;
 
+CREATE TABLE vcs_types (
+	vcs_type	VARCHAR(32) PRIMARY KEY,
+	description	TEXT NOT NULL DEFAULT ''
+) ENGINE=InnoDB;
+
 CREATE TABLE camps (
 	camp_number	INTEGER PRIMARY KEY,
 	username	VARCHAR(32) NOT NULL
@@ -27,8 +33,15 @@ CREATE TABLE camps (
 				ON DELETE CASCADE,
 	create_date	DATETIME NOT NULL,
 	comment TEXT NOT NULL DEFAULT '',
+	vcs_type	VARCHAR(32) NOT NULL
+				REFERENCES vcs_types (vcs_type)
+				ON UPDATE CASCADE
+				ON DELETE CASCADE,
 	CHECK (create_date NOT REGEXP '^0000')
 ) ENGINE=InnoDB;
+
+INSERT INTO vcs_types VALUES ('svn', 'Subversion');
+INSERT INTO vcs_types VALUES ('svk', 'SVK');
 
 /* Since MySQL doesn't have sequences, and it's quite difficult to have a reliable query that finds the lowest
    available camp number, we'll use this dummy table populated with numbers 1-99, which we can join against

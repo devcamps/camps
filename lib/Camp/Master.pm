@@ -14,42 +14,52 @@ use Exporter;
 use base qw(Exporter);
 
 @Camp::Master::EXPORT = qw(
-    initialize
-    dbh
     base_path
+    base_tmpdir
     base_user
-    type_path
-    install_templates
-    camp_list
-    has_rails
-    has_ic
-    camp_db_type
     camp_db_config
-    create_camp_path
-    prepare_camp
-    prepare_ic
-    prepare_apache
-    prepare_database
-    prepare_rails
-    register_camp
-    set_camp_user
-    svn_checkout
-	svn_update
-    get_next_camp_number
+    camp_db_type
+    camp_list
+    camp_type_list
     camp_user
     camp_user_info
     camp_user_obj
+    camp_user_tmpdir
     config_hash
+    create_camp_path
+    dbh
+    db_path
     do_system
+    do_system_soft
+    get_next_camp_number
+    has_ic
+    has_rails
+    initialize
+    install_templates
+    mysql_path
+    pgsql_path
+    prepare_apache
+    prepare_camp
+    prepare_database
+    prepare_ic
+    prepare_rails
+    process_copy_paths
+    register_camp
     role_password
-    role_sql
     roles
     roles_path
-    pgsql_path
-    mysql_path
-    db_path
+    role_sql
     server_control
-    process_copy_paths
+    set_camp_comment
+    set_camp_user
+	svk_local_path
+	svk_mirror_path
+	svn_repository
+	type
+    type_path
+    unregister_camp
+    vcs_checkout
+	vcs_type
 );
 
 my (
@@ -60,6 +70,7 @@ my (
     $has_ic,
     $initialized,
     $type,
+    $vcs_type,
     $base_camp_user,
     $base_user_obj,
     $camp_user,
@@ -80,7 +91,7 @@ sub initialize {
     my %options = @_;
     if (!$initialized or $options{force}) {
         $initialized
-            = $conf_hash = $has_rails = $has_ic = $type
+            = $conf_hash = $has_rails = $has_ic = $type = $vcs_type
             = $camp_user = $camp_user_info = $roles
             = $camp_db_config
             = undef;
@@ -90,6 +101,7 @@ sub initialize {
             my $hash = get_camp_info( $options{camp} );
             set_type( $hash->{camp_type} );
             set_camp_user( $hash->{username} );
+            set_vcs_type($hash->{vcs_type});
             read_camp_config();
             $initialized++;
             # initialize the config hash to the requested camp number.
@@ -97,6 +109,7 @@ sub initialize {
         }
         else {
             set_type( $options{type} ) if defined $options{type};
+            set_vcs_type($options{vcs_type}) if defined $options{vcs_type};
             set_camp_user( $options{user} ) if defined $options{user};
             read_camp_config();
             $initialized++;
@@ -116,6 +129,23 @@ sub set_type {
 sub type {
     die "No type set!\n" unless defined $type;
     return $type;
+}
+
+sub set_vcs_type {
+    my $new_type = shift;
+    die "Invalid vcs_type '$new_type' requested!\n"
+        unless validate_vcs_type($new_type);
+    return $vcs_type = $new_type;
+}
+
+sub vcs_type {
+    die "No vcs_type set!\n" unless $vcs_type;
+    return $vcs_type;
+}
+
+sub validate_vcs_type {
+    my $new_type = shift;
+    return ($new_type =~ /\A(?:svn|svk)\z/);
 }
 
 sub read_camp_config {
@@ -177,6 +207,14 @@ sub base_path {
     return base_user_path();
 }
 
+sub base_tmpdir {
+    my $dir = File::Spec->catfile(base_path(), 'tmp');
+    -d $dir
+        or mkpath($dir)
+        or die "base_tmpdir '$dir' didn't exist and couldn't be created\n";
+    return $dir;
+}
+
 sub type_path {
     my $local_type = @_ ? shift : type();
     return File::Spec->catfile( base_path(), $local_type, );
@@ -235,6 +273,13 @@ If left unspecified for a given path, this effectively defaults to false.
 
 If provided with a Perly true value (non-blank, non-zero), the default behavior determined
 by I<default_link> is always used and the camp creator isn't given a choice in the matter.
+
+=item I<exclude>
+
+May be provided with a single scalar entry or an array of such entries; each should
+correspond to an rsync/tar-style "--exclude" pattern, which will be provided to the
+rsync call that performs the copy.  This naturally only comes into play if copying the
+source rather than symlinking.
 
 =back
 
@@ -301,23 +346,52 @@ sub process_copy_paths {
         my $link = defined($copy->{default_link}) && $copy->{default_link};
         my $src = $copy->{source};
         my $target = $copy->{target};
+        my $src_trail++ if $src =~ m{/$};
+        my $target_trail++ if $target =~ m{/$};
         $src = File::Spec->catfile( type_path(), $src ) if ! File::Spec->file_name_is_absolute($src);
         $target = File::Spec->catfile( $conf->{path}, $target );
+        $src .= '/' if $src_trail and $src !~ q{/$};
+        $target .= '/' if $target_trail and $target !~ q{/$};
         if (!$defaults_only and !( defined($copy->{always}) && $copy->{always} )) {
-            my $decision;
-            while (!defined($decision) or $decision !~ /^\s*([yn]?)\s*$/i) {
+            my ($decision, $flag);
+            while (!defined($decision) or !($decision =~ s/^\s*([yn]?)\s*$/$1/i)) {
                 printf "Do you want to copy $src to $target (if no, symlinks are used)? y/n (%s) ", $link ? 'n' : 'y';
                 $decision = <STDIN>;
+                chomp $decision;
             }
-            $link = $1 eq 'n' if $1;
+            $link = lc($decision) eq 'n' if $decision;
         }
         if ($link) {
             print "Symlinking $target to $src.\n";
+            if (-e $target) {
+                print "NOTE: $target already exists; no symlink will be added; skipping!\n";
+                next;
+            }
             symlink($src, $target) or die "Failed to symlink: $!\n";
         }
         else {
-            print "Copying $src to $target.\n";
-            system("cp -a $src $target") == 0 or die "Failed to copy: $!\n";
+            print "Rsyncing $src to $target.\n";
+            if (-l $target) {
+                print "WARNING: $target already exists and is a symlink; skipping!\n";
+                next;
+            }
+            my @exclude;
+            if (defined $copy->{exclude}) {
+                my $ref = ref($copy->{exclude});
+                if (!$ref) {
+                    @exclude = ($copy->{exclude});
+                }
+                elsif ($ref eq 'ARRAY') {
+                    @exclude = @{$copy->{exclude}};
+                }
+                else {
+                    die "The 'exclude' entry must be a simple scalar or an array.\n";
+                }
+            }
+            unshift @exclude, '**.svn**';
+            my $exclude_args = join ' ', map { "--exclude='$_'" } @exclude;
+            do_system(qq{rsync --stats -a --delete $exclude_args $src $target});
+            # system("cp -a $src $target") == 0 or die "Failed to copy: $!\n";
         }
     }
     return @data;
@@ -442,11 +516,17 @@ sub set_camp_user_info {
 
 sub get_camp_info {
     my $camp = shift;
-    my $row = dbh()->selectrow_hashref('SELECT username, camp_type FROM camps WHERE camp_number = ?', undef, $camp,);
+    my $row = dbh()->selectrow_hashref('SELECT * FROM camps WHERE camp_number = ?', undef, $camp,);
     die "Camp '$camp' is unknown!\n"
-        unless ref($row) and $row->{camp_type}
-    ;
+        unless ref($row) and $row->{camp_type} and $row->{vcs_type};
     return $row; 
+}
+
+sub set_camp_comment {
+    my ($comment) = @_;
+    
+    my $conf = config_hash();
+    dbh()->do('UPDATE camps SET comment = ? WHERE camp_number = ?', undef, $comment, $conf->{number},); 
 }
 
 sub camp_user {
@@ -468,6 +548,14 @@ sub camp_user_info {
         unless defined $camp_user_obj
     ;
     return $camp_user_info;
+}
+
+sub camp_user_tmpdir {
+    my $dir = File::Spec->catfile(camp_user_obj()->dir(), 'tmp');
+    -d $dir
+        or mkpath($dir)
+        or die "camp_user_tmpdir '$dir' didn't exist and couldn't be created\n";
+    return $dir;
 }
 
 sub _db_type_dispatcher {
@@ -511,7 +599,8 @@ SQL
 sub substitute_hash_tokens {
     my ($string, $hash, $prefix) = @_;
     $prefix = defined($prefix) ? $prefix : 'CAMP';
-    for my $key (sort { length($a) <=> length($b) } keys %$hash) {
+    # substitute tokens, longest tokens first since short ones could be substrings
+    for my $key (sort { length($b) <=> length($a) } keys %$hash) {
         my $val = $hash->{$key};
         my $token = uc( length($prefix) ? "${prefix}_$key" : $key );
         $string =~ s/__${token}__/$val/g;
@@ -572,6 +661,9 @@ sub config_hash {
             number  => $camp_number,
             name    => "camp$camp_number",
             root    => camp_user_obj()->dir(),
+            type    => type(),
+            type_path   => type_path(),
+            base_path   => base_path(),
         };
         $conf_hash->{path} = File::Spec->catfile( $conf_hash->{root}, $conf_hash->{name}, );
         if (has_ic()) {
@@ -601,10 +693,10 @@ sub config_hash {
         $conf_hash->{http_port}     = 9000 + $camp_number;
         $conf_hash->{https_port}    = 9100 + $camp_number;
         for my $conf_file (
-            map { File::Spec->catfile( $_, 'local-config', ) } base_path(), type_path(),
+            map { File::Spec->catfile($_, 'local-config') } base_path(), type_path()
         ) {
             next unless -f $conf_file;
-            open(my $CONF, '<', $conf_file,);
+            open(my $CONF, '<', $conf_file) or die "Couldn't open configuration file $conf_file: $!\n";
             while (my $line = <$CONF>) {
                 chomp($line);
                 next unless $line =~ /\S/;
@@ -613,7 +705,7 @@ sub config_hash {
                     $conf_hash->{$key} = substitute_hash_tokens( $val, $conf_hash, );
                 }
                 else {
-                    warn "Skipping invalid line in file $conf_file ($line)\n";
+                    warn "Skipping invalid line in file $conf_file: $line\n";
                     next;
                 }
             }
@@ -648,6 +740,22 @@ sub config_hash {
             $conf_hash->{catalog_linker_filenames} = [
                 split /[\s,]+/, $conf_hash->{catalog_linker_filenames},
             ];
+            $conf_hash->{catroot} ||= File::Spec->catfile($conf_hash->{path}, 'catalogs', $conf_hash->{catalog});
+        }
+        $conf_hash->{http_url}  = 'http://'  . $conf_hash->{hostname} . ':' . $conf_hash->{http_port}  . '/';
+        $conf_hash->{https_url} = 'https://' . $conf_hash->{hostname} . ':' . $conf_hash->{https_port} . '/';
+
+        my %ssl_defaults = (
+            C   => 'US',
+            ST  => 'New York',
+            L   => 'New York',
+            O   => 'End Point Corporation',
+        );
+        
+        for my $token (keys %ssl_defaults) {
+            my $key = "ssl_$token";
+            next if defined $conf_hash->{$key} and $conf_hash->{$key} =~ /\S/;
+            $conf_hash->{$key} = $ssl_defaults{$token};
         }
     }
     return $conf_hash;
@@ -669,7 +777,7 @@ sub create_camp_path {
         );
     }
     else {
-        mkpath( $conf_hash->{path}, ) or die "Couldn't make camp path: $conf_hash->{path}: $!\n";
+        mkpath($conf_hash->{path}) or die "Couldn't make camp path: $conf_hash->{path}: $!\n";
     }
 }
 
@@ -681,20 +789,34 @@ INSERT INTO camps (
     camp_number,
     username,
     camp_type,
+    vcs_type,
     comment,
     create_date
 )
-VALUES (?,?,?,?, CURRENT_TIMESTAMP)
+VALUES (?,?,?,?,?, CURRENT_TIMESTAMP)
 EOL
-    $sth->execute( $conf->{number}, camp_user(), type(), $comment, )
-        or die "Failed to register camp $conf->{number} in database!\n"
-    ;
+    $sth->execute($conf->{number}, camp_user(), type(), vcs_type(), $comment)
+        or die "Failed to register camp $conf->{number} in database!\n";
     $sth->finish;
     return;
 }
 
-sub svn_repository() {
-    return File::Spec->catfile( type_path(), 'svnrepo', 'trunk', );
+sub unregister_camp {
+    my ($comment) = @_;
+    my $conf = config_hash();
+    my $sth = dbh()->prepare(q{DELETE FROM camps WHERE camp_number = ?});
+    $sth->execute($conf->{number})
+        or die "Failed to unregister camp $conf->{number} in database!\n";
+    $sth->finish;
+    return;
+}
+
+sub svn_repository {
+    my $repo = config_hash()->{repo_path};
+    $repo = File::Spec->catfile( type_path(), 'svnrepo', 'trunk' )
+        if !( defined($repo) and $repo =~ /\S/)
+    ;
+    return $repo;
 }
 
 sub svn_checkout {
@@ -716,24 +838,94 @@ sub svn_update {
 	return do_system('svn up');
 }
 
+sub svk_mirror_path {
+    my $mirror = config_hash()->{repo_mirror};
+    $mirror = '//mirror/' . type() . '/trunk'
+        unless defined($mirror) and $mirror =~ /\S/;
+    return $mirror;
+}
+
+sub svk_local_path {
+    my $conf = config_hash();
+	my $local = $conf->{repo_svk_local};
+    unless (defined($local) and $local =~ /\S/) {
+        my $name = $conf->{name};
+        die "svk_local_path called when camp name not yet defined!\n"
+            unless $name and length($name);
+        $local = '//local/' . type() . "/$name";
+    }
+    return $local;
+}
+
+sub vcs_checkout {
+    my $conf = config_hash();
+    my $vcs = vcs_type();
+
+    my @cmds;
+
+    if ($vcs eq 'svn') {
+        create_camp_path($conf->{number});
+        @cmds = (
+            [
+                'svn co file://%s %s',
+                svn_repository(),
+                $conf->{path},
+            ],
+        );
+    }
+    elsif ($vcs eq 'svk') {
+        @cmds = (
+            [
+                q{svk copy -m 'branching from mirror for %s' -p %s %s},
+                $conf->{name},
+                svk_mirror_path(),
+                svk_local_path(),
+            ],
+            [
+                'svk co %s %s',
+                svk_local_path(),
+                $conf->{path},
+            ],
+        );
+    }
+    else {
+        die "Unknown version control system: $vcs\n";
+    }
+
+    do_system(sprintf($_->[0], @{$_}[1..$#$_])) for @cmds;
+
+    return;
+}
+
 sub prepare_ic {
     return unless has_ic();
     my $conf = config_hash();
+    my $file;
 
     # Set the main server script as executable.
-    do_system("chmod +x $conf->{icroot}/bin/interchange");
+    $file = "$conf->{icroot}/bin/interchange";
+    -f $file and do_system("chmod +x $file");
 
     # Prepare the CGI linker.
-    do_system("$conf->{icroot}/bin/compile_link -s $conf->{icroot}/var/run/socket --source $conf->{icroot}/src");
-    mkdir $conf->{cgidir} or die "error making cgi-bin directory: $!\n";
-    do_system("cp -p $conf->{icroot}/src/vlink $conf->{cgidir}/$_")
-        for @{$conf->{catalog_linker_filenames}}
-    ;
-    # revert hardcoded changes to src/ by removing it, then re-fetching from Subversion
-    my $dir = pushd( "$conf->{icroot}/src" ) or die "Couldn't chdir $conf->{icroot}: $!\n";
-    my @files = ('tlink.pl', 'vlink.pl',);
-    unlink(@files) == @files or die "Couldn't unlink one or more files: $!\n";
-    do_system('svn up');
+    $file = "$conf->{icroot}/bin/compile_link";
+    if (-f $file) {
+        do_system("$file -s $conf->{icroot}/var/run/socket --source $conf->{icroot}/src");
+        mkdir $conf->{cgidir} or die "error making cgi-bin directory: $!\n";
+        do_system("cp -p $conf->{icroot}/src/vlink $conf->{cgidir}/$_")
+            for @{$conf->{catalog_linker_filenames}};
+        # revert hardcoded changes to src/ by removing it, then re-fetching from Subversion
+        my $dir = pushd("$conf->{icroot}/src") or die "Couldn't chdir $conf->{icroot}: $!\n";
+        my @files = ('tlink.pl', 'vlink.pl',);
+        unlink(@files) == @files or die "Couldn't unlink one or more files: $!\n";
+        my $vcs_type = vcs_type();
+        if ($vcs_type eq 'svn') {
+            do_system('svn up');
+        }
+        elsif ($vcs_type eq 'svk') {
+            do_system('svk up');
+        }
+    }
+
     type_message('prepare_ic');
     return;
 }
@@ -752,7 +944,7 @@ sub prepare_apache {
     my $crt_path = File::Spec->catfile( $conf->{httpd_path}, 'conf', 'ssl.crt', );
     mkpath( $crt_path );
 
-    my $tmpfile = File::Temp->new(UNLINK => 0,);
+    my $tmpfile = File::Temp->new( DIR => camp_user_tmpdir(), UNLINK => 0 );
     $tmpfile->print(<<EOF);
 [ req ]
 distinguished_name = req_distinguished_name
@@ -760,10 +952,10 @@ attributes         = req_attributes
 prompt             = no
 
 [ req_distinguished_name ]
-C                 = US
-ST                = New York
-L                 = New York
-O                 = End Point Corporation
+C                 = $conf->{ssl_C}
+ST                = $conf->{ssl_ST}
+L                 = $conf->{ssl_L}
+O                 = $conf->{ssl_O}
 OU                = $conf->{name} for $conf->{admin_name}
 CN                = $conf->{hostname}
 emailAddress      = $conf->{admin_email}
@@ -775,8 +967,8 @@ EOF
     do_system(
         sprintf(
             "openssl req -new -x509 -days 3650 -key %s -out %s -config $tmpfile",
-            File::Spec->catfile( type_path(), 'etc', 'camp.key', ),
-            File::Spec->catfile( $crt_path, "$conf->{hostname}.crt", ),
+            File::Spec->catfile(base_path(), 'etc', 'camp.key'),
+            File::Spec->catfile($crt_path, "$conf->{hostname}.crt"),
         ),
     );
 
@@ -1074,13 +1266,15 @@ sub _initialize_camp_database_pg {
     
     my $postgres_pass = $conf->{db_pg_postgres_pass} or die "No password determined for postgres user!\n";
     # Run initdb to make new database cluster.
-    my $tmp = File::Temp->new( UNLINK => 0, );
+    my $tmp = File::Temp->new( DIR => camp_user_tmpdir(), UNLINK => 0 );
     $tmp->print( "$postgres_pass\n" );
     $tmp->close or die "Couldn't close $tmp: $!\n";
     my @args = (
         "-D $conf->{db_data}",
         '-n',
-        "-U postgres --pwfile=$tmp -A md5",
+        '-U', 'postgres',
+        "--pwfile=$tmp",
+        '-A', 'md5',
     );
     push @args, "-E $conf->{db_encoding}"
         if $conf->{db_encoding}
@@ -1289,11 +1483,11 @@ sub prepare_database {
 }
 
 sub do_system {
-	my ($cmd) = @_;
-	print $cmd, $/;
-	my $exit = system($cmd) >> 8;
-	die "Error! Exit code = $exit\n" unless $exit == 0;
-	return;
+    my @cmd = @_;
+    print "@cmd\n";
+    my $exit = system(@cmd) >> 8;
+    die "Error! Exit code = $exit\n" unless $exit == 0;
+    return;
 }
 
 sub generate_nice_password {
@@ -1412,17 +1606,19 @@ sub rails_control {
     # Stupid mongrel fails if the var/log and var/run directories don't exist.  Lame.
     mkpath( [ map { File::Spec->catfile( $conf->{railsdir}, 'var', $_, ) } qw( log run ) ] );
     my $cmd = join('; ', map { "mongrel_rails cluster::$_" } @actions);
-    do_cmd_soft( "cd $conf->{railsdir} && ($cmd)" ) == 0
+    do_system_soft( "cd $conf->{railsdir} && ($cmd)" ) == 0
         and return 1
     ;
-    return undef;
+    return;
 }
 
 sub ic_control {
     my $action = shift;
-
+    my $conf = config_hash();
+    $ENV{CAMP} = $conf->{number};
+    return do_system_soft("$conf->{icroot}/bin/interchange --$action") == 0;
 }
-
+ 
 sub db_control {
     return _db_type_dispatcher( '_db_control' )->(@_);
 }
@@ -1448,7 +1644,7 @@ sub _db_control_mysql {
         my $opt = camp_mysql_options( no_database => 1, user => 'root' );
         $cmd = "mysqladmin --defaults-file=$conf->{db_conf} $opt $action";
     }
-    do_cmd_soft($cmd) == 0
+    do_system_soft($cmd) == 0
         and return 1
     ;
     return undef; 
@@ -1461,10 +1657,10 @@ sub _db_control_pg {
         unless defined $conf->{db_data}
         and $conf->{db_data} =~ /\S/
     ;
-    do_cmd_soft("pg_ctl -D $conf->{db_data} -l $conf->{db_tmpdir}/pgstartup.log -m fast -w $action") == 0
+    do_system_soft("pg_ctl -D $conf->{db_data} -l $conf->{db_tmpdir}/pgstartup.log -m fast -w $action") == 0
         and return 1
     ;
-    return undef;
+    return;
 }
 
 sub httpd_control {
@@ -1478,16 +1674,16 @@ sub httpd_control {
         unless defined $conf->{httpd_path}
         and $conf->{httpd_path} =~ /\S/
     ;
-    do_cmd_soft("$conf->{httpd_cmd_path} -d $conf->{httpd_path} -k $action") == 0
+    do_system_soft("$conf->{httpd_cmd_path} -d $conf->{httpd_path} -k $action") == 0
         and return 1
     ;
-    return undef;
+    return;
 }
 
-sub do_cmd_soft {
-    my $cmd = shift;
-    print "$cmd\n";
-    return system($cmd);
+sub do_system_soft {
+    my @cmd = @_;
+    print "@cmd\n";
+    return system(@cmd) >> 8;
 }
 
 sub type_message {
@@ -1499,6 +1695,12 @@ sub type_message {
     print "\n" . <$MSG> . "\n";
     close $MSG;
     return 1;
+}
+
+sub camp_type_list {
+    return map { { type => $_->[0], description => $_->[1] } } @{ dbh()->selectall_arrayref(
+        'SELECT camp_type, description FROM camp_types ORDER BY camp_type'
+    ) };
 }
 
 sub camp_list {
@@ -1526,6 +1728,8 @@ SQL
         http_port
         https_port
         hostname
+        http_url
+        https_url
     );
     while (my $rec = $sth->fetchrow_hashref) {
         initialize( force => 1, camp => $rec->{camp_number}, );

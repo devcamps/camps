@@ -1,0 +1,56 @@
+#!/usr/local/bin/perl
+
+# camp-file-overlay
+
+use strict;
+use warnings;
+use lib '/home/camp/lib';
+use Camp::Master;
+use Cwd;
+use IO::Handle;
+use Getopt::Long;
+
+*STDOUT->autoflush(1);
+*STDERR->autoflush(1);
+
+die "Don't run this as root!\n" if $< == 0;
+
+my %conf;
+GetOptions(
+	\%conf,
+	qw(
+		number=i
+		help
+	)
+);
+
+unless (defined($conf{number})) {
+	# if not specified, get current camp # from current working directory
+	(getcwd) =~ m{/camp(\d+)} and $conf{number} = $1;
+}
+
+initialize(
+    camp => $conf{number},
+);
+
+die "You are not the owner of camp $conf{number}!\n"
+    if $< != camp_user_obj()->uid()
+;
+
+if ($conf{help} or !defined($conf{number})) {
+	print <<'EOH';
+Usage: camp-file-overlay --number=$n
+
+Options:
+
+--number=$n Specify the camp number to merge unversion files with;
+            inferred from current working directory if possible
+
+--help      This help screen
+EOH
+	exit;
+}
+
+process_copy_paths();
+
+exit;

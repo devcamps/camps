@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if test "$1" -ge 0 2>/dev/null
+then
+  CAMP=$1
+  shift
+else
+  CAMP=`current-camp`
+fi
+
+export CAMP=$CAMP
+export PERL5LIB=$PERL5LIB:~/camp$CAMP/interchange/custom/lib:~/camp$CAMP/interchange/lib
+export PATH=$PATH:~/camp$CAMP/bin
+
+"$@"

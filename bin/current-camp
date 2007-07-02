@@ -1,0 +1,5 @@
+#!/usr/bin/perl
+
+$ENV{PWD} =~ m!/camp(\d+)\b! and print $1;
+
+

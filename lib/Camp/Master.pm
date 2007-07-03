@@ -59,7 +59,8 @@ use base qw(Exporter);
     type_path
     unregister_camp
     vcs_checkout
-	vcs_type
+    vcs_refresh
+    vcs_type
 );
 
 my (
@@ -895,6 +896,13 @@ sub vcs_checkout {
     do_system(sprintf($_->[0], @{$_}[1..$#$_])) for @cmds;
 
     return;
+}
+
+sub vcs_refresh {
+    my $base = vcs_type();
+	my $cmd = $base eq 'svk' ? 'pull' : 'up';
+    my $dir = pushd( config_hash()->{path} );
+    return do_system($base, $cmd);
 }
 
 sub prepare_ic {

@@ -938,6 +938,14 @@ sub prepare_ic {
     return;
 }
 
+sub _ssl_private_key {
+    for my $root_path (type_path(), base_path()) {
+        my $path = File::Spec->catfile( $root_path, 'etc', 'camp.key' );
+        return $path if -f $path;
+    }
+    die "Cannot find private key file for SSL cert creation.\n";
+}
+
 sub prepare_apache {
     my $conf = config_hash();
     # create empty directories
@@ -975,7 +983,7 @@ EOF
     do_system(
         sprintf(
             "openssl req -new -x509 -days 3650 -key %s -out %s -config $tmpfile",
-            File::Spec->catfile(base_path(), 'etc', 'camp.key'),
+            _ssl_private_key(),
             File::Spec->catfile($crt_path, "$conf->{hostname}.crt"),
         ),
     );

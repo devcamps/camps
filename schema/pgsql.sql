@@ -1,5 +1,6 @@
 DROP TABLE camps;
 DROP SEQUENCE camp_number;
+DROP TABLE vcs_types;
 DROP TABLE camp_users;
 DROP TABLE camp_types;
 
@@ -23,7 +24,7 @@ CREATE TABLE camp_types (
 );
 
 CREATE TABLE vcs_types (
-	vcs_type character varying(32) NOT NULL,
+	vcs_type character varying(32) NOT NULL PRIMARY KEY,
 	description text DEFAULT ''::text NOT NULL
 );
 

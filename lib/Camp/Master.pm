@@ -61,6 +61,7 @@ use base qw(Exporter);
     unregister_camp
     vcs_checkout
     vcs_refresh
+    vcs_remove_camp
     vcs_type
 );
 
@@ -176,6 +177,54 @@ sub camp_db_type {
     die "The camp database DSN appears to be invalid: $dsn\n" unless defined $type;
     return lc $type;
 }
+
+=pod
+
+=head1 CAMP MASTER DATABASE CONFIGURATION
+
+The camp system relies on a single master database to hold the known camp users,
+camp types, and existing camps.  All camps within the system are registered within
+this database, along with the type of camp, the version control system used for
+that camp, the owner, etc.  The camp system will not function without this
+database.
+
+Connectivity info for this database must be provided to the camp system.  The
+camp master database configuration file, B<camp-db-config>, serves this purpose.
+
+It is expected to live at B<$camp_base/camp-db-config>.
+
+Entries consist of the form I<$key:$value>, one per line.
+
+The following key/value pairs are expected to be provided by this file:
+
+=over
+
+=item I<dsn>
+
+The DBI DSN for the master camp database.  See the DBI docs for DBI well-formedness;
+it depends in no small part on the database driver used (currently, only Pg and mysql
+drivers are supported).
+
+=item I<user>
+
+The username to use when connecting to the master camp database.
+
+=item I<password>
+
+The password to use when connecting to the master camp database.  If your database is
+configured to allow access without a password, then you may leave this option out;
+however, that is typically not recommended, since the connection attempts will happen
+from different UNIX user accounts.
+
+=back
+
+Therefore, a typical B<camp-db-config> file might look like:
+
+ dsn:dbi:Pg:dbname=camps
+ user:camp
+ password:fuggedabowwditt
+
+=cut
 
 sub camp_db_config {
     return %$camp_db_config if defined $camp_db_config;
@@ -652,6 +701,380 @@ sub _determine_db_type_and_path {
     return $conf->{db_type};
 }
 
+=pod
+
+=head1 CAMP CONFIGURATION VARIABLES
+
+Camp configuration occurs at two levels:
+
+=over
+
+=item Base camp level
+
+Configuration information provided at the B<$camp_base> trickles down to all
+camp types underneath that base.
+
+=item Camp type level
+
+Each camp type has a subdirectory under the B<$camp_base>, and configuration
+information provided at this level applies only to the camp type in question,
+overriding any conflicting settings coming in from the base camp level.
+
+=back
+
+The configuration information is parsed at the base camp level first, then the
+type-specific level second.
+
+In each level, the B<local-config> file is processed.  This is expected to
+consist of key/value pairs of the form:
+
+ some_key:some_value
+
+Empty lines and lines starting with the pound character are ignored, meaning
+that you can embed comments in your configuration files.
+
+All values specified in these files undergo token substitution, such that
+any configuration variable can be substituted into a value by using the
+token:
+
+ __CAMP_VARIABLENAME__
+
+For instance, if the B<local-config> file has a line:
+
+ my_variable:some_useless_value
+
+then a subsequent line:
+
+ other_variable:__CAMP_MY_VARIABLE__foo
+
+will result in the "my_variable" key having value "some_useless_valuefoo".
+
+These variables are used both by Camp::Master itself, and in the various templates
+that Camp::Master renders at camp creation time; the token substitution logic is
+the same in each case.  This allows your template files to undergo rendering and
+have camp-specific information substituted in, localing the file to the camp being
+created (which is the entire point of the camp system).
+
+Prior to parsing the base level and camp level configuration files, a number
+of configuration entries are determined automatically by Camp::Master.
+
+=over
+
+=item base_path
+
+The B<$camp_base> (defaults to /home/camp)
+
+=item type_path
+
+The path to the camp type's directory under B<$camp_base>.
+
+=item type
+
+The type of camp.
+
+=item root
+
+The camp owner's home directory path.
+
+=item path
+
+The local path of the camp being operated upon (for instance, /home/some_user/camp16)
+
+=item number
+
+The camp number
+
+=item name
+
+The camp's name (for instance, "camp23")
+
+=item docroot
+
+The Apache docroot for the camp.
+
+=item http_port
+
+The custom port the camp will use for HTTP traffic.
+
+=item https_port
+
+The custom port the camp will use for HTTPS traffic.
+
+=item httpd_path
+
+The camp-specific directory where Apache configuration and log files will go.
+
+=item httpd_lib_path
+
+The path to the Apache modules that must be referenced when launching camp Apache.
+
+Defaults to /usr/lib/httpd.
+
+=item httpd_cmd_path
+
+The path to the Apache executable for controlling the Apache server.
+
+Defaults to /usr/sbin/httpd.
+
+=item icroot (I<Interchange only>)
+
+The main interchange directory within the camp.
+
+=item cgidir (I<Interchange only>)
+
+The path where the interchange linker programs should reside; defaults to cgi-bin
+under the camp's path.
+
+=item catroot (I<Interchange only>)
+
+The main path for your Interchange catalog; requires that the I<catalog> variable
+be provided in your configuration file.
+
+Defaults to I<path> + '/catalogs/' + I<catalog>.
+
+=item railsdir (I<Rails only>)
+
+The path where rails will live within the camp; defaults to "rails" under the camp's path.
+
+=item mongrel_base_port (I<Rails only>)
+
+The lowest port to be used by the Mongrel cluster for balancing Rails children
+
+=item proxy_name (I<Rails only>)
+
+The ProxyBalancer name used for the Mongrel listeners within the camp Apache.
+
+=item proxy_balance_members (I<Rails only>)
+
+Rendered Apache ProxyBalancer member configuration directives suitable for placement
+directly within a virtualhost's <Proxy balancer://...>...</Proxy> container.  Defaults
+to using three mongrel listeners with ports incremented by one starting at the
+mongrel_base_port.
+
+=item db_type
+
+The type of database server used for the camp; will be either 'pg' for Postgres or 'mysql'
+for MySQL.
+
+The database type is determined by the subdirectories within the camp type path; the camp
+type path must have either a pgsql directory or a mysql directory (for pg or mysql, respectively).
+
+=item db_path
+
+The main database path for the camp's database server; dependent on the database type,
+will be either 'pgsql' or 'mysql' for Postgres and MySQL respectively.
+
+=item db_host
+
+The database hostname; defaults to 'localhost'.
+
+=item db_port
+
+The custom port to use for your camp's database server.  Defaults to 8900 + camp number.
+
+=item db_encoding
+
+The encoding to use when initializing the database cluster.  Defaults to UTF-8.
+
+=item db_data
+
+The directory where the camp's database is expected to store binary data.  Defaults to
+db_path + '/data'.
+
+=item db_tmpdir
+
+A temporary directory for varying, ephemeral data like logs, pids, etc., specific for
+the camp's database server.  Defaults to db_path + '/tmp'.
+
+=item db_log
+
+The base database server logfile path; for Postgres, this is in fact the logfile to be
+used; MySQL uses multiple logging paths ordinarily, so it can be used as a prefix for a full
+path with MySQL (it probably could be used for all logging too).
+
+Defaults:
+
+=over
+
+=item I<Pg>
+
+db_tmpdir + 'postgresql.log'
+
+=item I<MySQL>
+
+db_tmpdir + 'mysql.log'
+
+=back
+
+=item db_conf
+
+The database server configuration file within the camp.
+
+Defaults:
+
+=over
+
+=item I<Pg>
+
+db_data + 'postgresql.conf'
+
+=item I<MySQL>
+
+db_path + 'my.cnf'
+
+=back
+
+=item db_socket (I<MySQL only>)
+
+Path for the camp's database server UNIX socket.  Defaults to db_tmpdir + 'mysql.$camp_number.sock'
+
+=back
+
+All of the above variables are calculated for you.  This calculation is one of the first things performed
+by Camp::Master; therefore, they can be safely overridden in your base or type configuration files as
+appropriate for your camp deployment.
+
+A few variables B<must be provided> by your configuration files in order for the camp system to function
+properly:
+
+=over
+
+=item db_source_scripts
+
+Space-separated list of paths to SQL files that should be run upon preparing a camp's database server.
+You may specify as many as you need, but at least one should be provided.
+
+The paths may be absolute or relative; if relative, they are expected to be relative to the camp type's
+directory.
+
+Each script specified in the space-separated list is run within its own db client shell; they are executed
+in order of specification.  No assumptions are made for transaction handling; if you want transactions,
+put them in the scripts themselves.
+
+It's important to know the context in which these run, which differs between database server types due to
+fundamental structural differences between those servers and how they organize things:
+
+=over
+
+=item I<Postgres>
+
+In Postgres, each script is run via a connection to the "postgres" user's "postgres" database.  Therefore,
+your scripts need to provide I<\connect> information in order to make changes against a different database.
+
+=item I<MySQL>
+
+In MySQL, the scripts connect using the db_default_database and db_default_user variables, which effectively
+makes these variables required for MySQL deployments.
+
+=back
+
+=item db_dbnames
+
+Space-separated list of database names that are expected to live within your camp's database server.
+
+It's important to provide this list, particularly for Postgres, so your user account's .pgpass file
+can be updated appropriately to allow easy access to each database specified.  Ordinarily, only one
+database would be listed.
+
+=item camp_subdirectories
+
+A space-separated list of directories that are expected to reside under your camp (naturally, these paths
+are expected to be relative to the camp directory itself).  These directories will be cleared out if
+you rebuild an existing camp (with the mkcamp script), which is the main reason they need to be provided
+to Camp::Master.
+
+=item catalog_linker_filenames (I<Interchange only>)
+
+Space-separated list of filenames that need to be put in place within your camp as Apache/Interchange
+linker programs.  Specify at least one for your main catalog.
+
+=item catalog (I<Interchange only>)
+
+The name of the catalog for your camp's Interchange deployment.  Specify one, even if you have multiple
+catalogs; the I<catroot> variable is set based on this.  For the majority of End Point Interchange
+deployments, multiple catalogs are a non-issue.
+ 
+=back
+
+Some optional variables may also be provided to affect the functioning of your camp deployment:
+
+=over
+
+=item db_locale (I<postgres only>)
+
+The locale to use when initializing the database cluster.  There is no default, meaning that
+the cluster would by default initialize to whatever locale Postgres itself uses as the default.
+
+=item db_default_database
+
+The default database to use when connecting to your database via its respective camp DB client
+wrapper (I<psql_camp> or I<mysql_camp>).  Also determines the database used for I<db_source_scripts>
+import on MySQL.
+
+=item db_default_user
+
+The default user to use when connecting to your database via its respective camp DB client
+wrapper (I<psql_camp> or I<mysql_camp>).  Also determines the user used for I<db_source_scripts>
+import on MySQL.
+
+=item ssl_C
+
+The country to use for your camp's SSL certificate (defaults to US).
+
+=item ssl_ST
+
+The statename to use for your camp's SSL certificate (defaults to 'New York').
+
+=item ssl_L
+
+The locality to use for your camp's SSL certificate (defaults to 'New York').
+
+=item ssl_O
+
+The organization name to use for your camp's SSL certificate (defaults to 'End Point Corporation').
+
+=item repo_path
+
+Use this to specify the main project Subversion repository path; is is assumed that it will be
+accessed via the "file://" protocol, meaning that you need only provide the path to the repository (and
+any subdirectories within that repository).
+
+If not specified, the repository is expected to live at:
+
+ I<type_path> . '/svnrepo/trunk'
+
+There is no default value for I<repo_path>, however, so do not count on this being available for
+token substitution unless you explicitly set it in the relevant local-config.  The default repository
+location described above is enforced through logic, but not within the master configuration hash.
+
+=item repo_mirror
+
+Specifies the SVK mirror path used for mirroring the master SVN repository.  The convention is
+for the mirror and working paths to live under the default SVK depot, meaning that they should
+begin with '//' rather than '/some_depot_name/'.
+
+If not specified, the SVK mirroring path used will be:
+
+ '//mirror/' . I<type> . '/trunk'
+
+Like I<repo_path>, there is no default value for this particular setting.
+
+=item repo_svk_local
+
+Specifies the SVK local working path used per camp; when creating a new camp using the 'svk'
+version control system option, a branch is always created from the main mirror path (see
+I<repo_mirror>) to this local path.  The local path is assumed to be specific per camp.
+
+If not specified, the SVK local working path will be:
+
+ '//local/' . I<type> . '/' . I<name>
+
+Like I<repo_path>, there is no default value for this particular setting.
+
+=back
+
+=cut
+
 sub config_hash {
     if (! defined $conf_hash) {
         my $camp_number = shift;
@@ -859,6 +1282,47 @@ sub svk_local_path {
     return $local;
 }
 
+sub _initialize_svk {
+    my (
+        $repo,
+        $mirror,
+        $local,
+    ) = (
+        svn_repository(),
+        svk_mirror_path(),
+        svk_local_path(),
+    );
+    
+    die "Repo path is not specified!  Please set the repo_path in your base or type local-config.\n"
+        unless defined($repo) and $repo =~ /\S/
+    ;
+
+    die "Mirror path is not specified!  Please set the repo_mirror in your base or type local-config.\n"
+        unless defined($mirror) and $mirror =~ /\S/
+    ;
+
+    die "SVK local base path is not specified.  Please set repo_svk_local in your base or type local-config.\n"
+        unless defined($local) and $local =~ /\S/
+    ;
+
+    # Prepare the default depot; harmless if it already exists.
+    do_system_soft(q{svk depotmap --init});
+    
+    # If the mirror has already been set up, info will be successful.
+    if (do_system_soft(sprintf q{svk info %s}, $mirror) == 0) {
+        print "SVK mirror $mirror already exists.\n";
+    }
+    else {
+        print "Mirroring repo to $mirror.\n";
+        do_system_soft(sprintf q{svk mirror file://%s %s}, $repo, $mirror);
+    }
+
+    # Sync the mirror
+    do_system_soft(sprintf q{svk sync %s}, $mirror);
+
+    return;
+}
+
 sub vcs_checkout {
     my $conf = config_hash();
     my $vcs = vcs_type();
@@ -876,16 +1340,21 @@ sub vcs_checkout {
         );
     }
     elsif ($vcs eq 'svk') {
+        _initialize_svk();
+        my $local = svk_local_path();
+        die "Local workspace $local already exists; use svk delete to clear this or handle checkout manually.\n"
+            if do_system_soft('svk', 'info', $local) == 0
+        ;
         @cmds = (
             [
                 q{svk copy -m 'branching from mirror for %s' -p %s %s},
                 $conf->{name},
                 svk_mirror_path(),
-                svk_local_path(),
+                $local,
             ],
             [
                 'svk co %s %s',
-                svk_local_path(),
+                $local,
                 $conf->{path},
             ],
         );
@@ -901,9 +1370,34 @@ sub vcs_checkout {
 
 sub vcs_refresh {
     my $base = vcs_type();
-	my $cmd = $base eq 'svk' ? 'pull' : 'up';
+    my $cmd;
+    if ($base eq 'svk') {
+        $cmd = 'pull';
+        _initialize_svk();
+    }
+    else {
+        $cmd = 'up';
+    }
+	$cmd = $base eq 'svk' ? 'pull' : 'up';
     my $dir = pushd( config_hash()->{path} );
     return do_system($base, $cmd);
+}
+
+sub vcs_remove_camp {
+    if (vcs_type() eq 'svk') {
+        my $path = svk_local_path();
+        print "Clearing SVK workspace $path.\n";
+        do_system_soft(sprintf('svk co -d %s', config_hash()->{path}));
+        do_system_soft(
+            sprintf(
+                q{svk delete -m '%s remove camp %s' %s},
+                __PACKAGE__,
+                config_hash()->{name},
+                $path,
+            )
+        );
+    }
+    return;
 }
 
 sub prepare_ic {
@@ -993,6 +1487,87 @@ EOF
     type_message('prepare_apache');
     return;
 }
+
+=pod
+
+=head1 TEMPLATE FILE OPERATIONS
+
+Rendering and installing arbitrary files into a camp from templates is a critical aspect of
+the camp system.  Configuration files for Apache, Interchange, Rails, etc. should be reduced
+to templates, with things like hostnames, file paths, port numbers, etc. replaced with
+camp-system tokens of the form described in the section regarding CONFIGURATION VARIABLES.  At
+camp creation time, Camp::Master will parse each template, performing token substitution,
+and install each parsed template into the appropriate location within the new camp.
+
+The files to parse are specified within the camp type subdirectory's B<camp-config-files>
+file.  Specify one path per line; blanks and lines starting with the pound character are ignored.
+
+All the files specified will undergo the described token substitution and installation into
+the new camp.  The paths specified in B<camp-config-files> are expected to be relative to
+the camp type directory's 'etc/' subdirectory, and also reflect the target path of the file
+when copied into the new camp itself.  Thus, a file at /home/camp/some_type/etc/blah/foo.conf
+would be registered in B<camp-config-files> with a path relative to etc/, or "blah/foo.conf",
+and would be installed at /home/some_user/campNN/blah/foo.conf after parsing.
+
+One file is always parsed by default, regardless of specification in the config file:
+
+ httpd/conf/httpd.conf
+
+This is the base Apache configuration, and Apache is thus always expected to live at httpd
+within a camp.  You could theoretically change this in your camp, but do so at your peril.
+
+Also, some assumptions are made about what files will be included if your camp uses
+Interchange versus Rails:
+
+=over
+
+=item *
+
+If your B<camp-config-files> file specifies I<interchange/bin/interchange>, then
+it is assumed to use Interchange.
+
+=item *
+
+If your B<camp-config-files> file specifies I<rails/.../config/mongrel_cluster.yml>, then
+it is assumed to use Rails.
+
+=back
+
+Note that these are not mutually exclusive.  It is theoretically acceptable for a single
+camp to employ both app server types.  If you are bursting with curiosity and sadly deficient
+in sanity, by all means try this out.
+
+While this can be expected to vary between deployments, a number of files are obvious candidates
+for inclusion within this templating scheme:
+
+=over
+
+=item *
+
+rails/.../config/database.yml
+
+=item *
+
+interchange/interchange_local.cfg
+
+=item *
+
+catalogs/.../catalog_local.cfg
+
+=item *
+
+httpd/conf/sites/some_site.conf
+
+=back
+
+Anything that relies on file paths, ports, domain names, etc. should be abstracted out into such
+templates.  A common pattern (implied by interchange_local.cfg and catalog_local.cfg above) is
+to encapsulate such details within "local" configuration files that are included from master configuration
+files; the master configuration files can stay in version control and have no need to vary between
+camps, production, etc., while the "local" configuration files are small, containing only what is absolutely
+necessary, and vary in a controlled way between environments by virtue of being managed by the camp system.
+
+=cut
 
 sub install_templates {
     my $conf = config_hash();
@@ -1774,3 +2349,24 @@ SQL
 }
 
 1;
+
+=pod
+
+=head1 SVK USE
+
+The camp system is designed to support easy use of SVK, which effectively allows for easier branch management
+and more effective management of camps that are undergoing major revisions over long periods of time (and
+thus less likely to be committed to the main repository on a frequent basis).
+
+In order for SVK to work on your deployment, you must have svk installed (which is an exciting adventure,
+placing various requirements on your SVN version, for example).
+
+There is no need to configure SVK per user; the camp system will initialize a user's local .svk settings,
+mirrors, etc., whenever that user first chooses 'svk' as their version control system for a new camp.
+
+If you want to make use of SVK with the camp system, please look at the configuration variables section,
+with specific attention paid to I<repo_mirror> and I<repo_svk_path>; these dictate how the SVK repositories
+are created and managed over time.
+
+=cut
+

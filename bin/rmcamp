@@ -29,10 +29,7 @@ my $conf_hash = config_hash();
 
 server_control(action => 'stop', service => 'all');
 
-if (vcs_type() eq 'svk') {
-	do_system_soft("svk co -d $conf_hash->{path}");
-	do_system_soft('svk delete -m rmcamp ' . svk_local_path());
-}
+vcs_remove_camp();
 
 do_system_soft('rm', '-rf', $conf_hash->{path});
 

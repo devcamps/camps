@@ -63,6 +63,9 @@ EOH
 	exit;
 }
 
+$opt{type} = default_camp_type() and print "Defaulting to camp type: $opt{type}\n"
+    if !defined($opt{type});
+
 die "No type specified!\n" unless defined $opt{type};
 
 die "comment is required; run with --help for more info\n"

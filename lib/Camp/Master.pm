@@ -29,6 +29,7 @@ use base qw(Exporter);
     create_camp_path
     dbh
     db_path
+    default_camp_type
     do_system
     do_system_soft
     get_next_camp_number
@@ -1436,7 +1437,10 @@ sub _import_camp_data {
     my ($sources, $conf) = @_;
     # Import data
     for my $script (@$sources) {
-        my $script_file = File::Spec->catfile( type_path(), $script, );
+        my $script_file = File::Spec->file_name_is_absolute($script)
+            ? $script
+            : File::Spec->catfile( type_path(), $script, )
+        ;
         my $cmd = _import_db_cmd( $script_file, $conf );
         print "Processing script '$script':\n$cmd\n";
         system($cmd) == 0 or die "Error importing data\n";
@@ -1711,6 +1715,17 @@ sub type_message {
     print "\n" . <$MSG> . "\n";
     close $MSG;
     return 1;
+}
+
+sub default_camp_type {
+    my ($deftype) = dbh()->selectrow_array(<<'EOL');
+SELECT c.camp_type
+FROM camp_types c
+LEFT jOIN camp_types c2
+    ON c2.camp_type <> c.camp_type
+WHERE c2.camp_type IS NULL
+EOL
+    return $deftype;
 }
 
 sub camp_type_list {

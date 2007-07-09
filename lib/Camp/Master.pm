@@ -332,6 +332,16 @@ correspond to an rsync/tar-style "--exclude" pattern, which will be provided to 
 rsync call that performs the copy.  This naturally only comes into play if copying the
 source rather than symlinking.
 
+=item I<parse_source>
+
+If provided with a Perly true value, the source path will be parsed for camp configuration
+tokens (see CAMP CONFIGURATION VARIABLES).  If not specified, parsing does not occur.
+
+=item I<parse_target>
+
+If provided with a Perly true value, the target path will be parsed for camp configuration
+tokens (see CAMP CONFIGURATION VARIABLES).  If not specified, parsing does not occur.
+
 =back
 
 =back
@@ -397,6 +407,9 @@ sub process_copy_paths {
         my $link = defined($copy->{default_link}) && $copy->{default_link};
         my $src = $copy->{source};
         my $target = $copy->{target};
+        $src = substitute_hash_tokens($src, $conf) if $copy->{parse_source};
+        $target = substitute_hash_tokesn($target, $conf) if $copy->{parse_target};
+
         my $src_trail++ if $src =~ m{/$};
         my $target_trail++ if $target =~ m{/$};
         $src = File::Spec->catfile( type_path(), $src ) if ! File::Spec->file_name_is_absolute($src);

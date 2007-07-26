@@ -178,6 +178,11 @@ sub camp_db_type {
     return lc $type;
 }
 
+sub camp_type_db_type {
+    my $conf = config_hash();
+    return $conf->{db_type};
+}
+
 =pod
 
 =head1 CAMP MASTER DATABASE CONFIGURATION
@@ -622,7 +627,7 @@ sub camp_user_tmpdir {
     return $dir;
 }
 
-sub _db_type_dispatcher {
+sub _camp_db_type_dispatcher {
     my $name = shift;
     my $type = camp_db_type();
     my $sub = __PACKAGE__->can( "${name}_$type" );
@@ -630,8 +635,16 @@ sub _db_type_dispatcher {
     return $sub;
 }
 
+sub _db_type_dispatcher {
+    my $name = shift;
+    my $type = camp_type_db_type();
+    my $sub = __PACKAGE__->can( "${name}_$type" );
+    die "No function $name for database type $type!\n" unless $sub;
+    return $sub;
+}
+
 sub get_next_camp_number {
-    return _db_type_dispatcher( '_get_next_camp_number' )->( @_ );
+    return _camp_db_type_dispatcher( '_get_next_camp_number' )->( @_ );
 }
 
 sub _get_next_camp_number_pg {
@@ -980,6 +993,21 @@ In MySQL, the scripts connect using the db_default_database and db_default_user 
 makes these variables required for MySQL deployments.
 
 =back
+
+=item db_mysql_scripts (I<MySQL only>)
+
+Space-separated list of paths to SQLfiles that should be run upon preparing a camp's MySQL database server,
+prior to processing the roles for that database; this gives an opportunity to initialize the database to
+a known set of users/permissions, for instance, or initalize things in other ways needed prior to role
+creation.
+
+=item db_sleep_time
+
+Allows specification of a number of seconds to sleep between starting the database server at camp creation
+time and processing the roles and I<db_source_scripts>; necessary for UNIX socket connections in which the
+server needs a few seconds to start up and initialize its socket file.
+
+Sane values appear to be in the 5-15 second range.  Defaults to 5 seconds; set to 0 or blank to turn off.
 
 =item db_dbnames
 
@@ -2080,7 +2108,8 @@ sub prepare_database {
     db_control( 'start' ) or die "Error starting new camp database!\n";
 
     # Sleep for a few seconds to give the server time to set up if necessary
-    sleep(5);
+    my $sleep_threshold = defined($conf->{db_sleep_time}) ? $conf->{db_sleep_time} : 5;
+    sleep($sleep_threshold) if $sleep_threshold;
 
     _prepare_camp_database_roles( \@roles, $conf );
 

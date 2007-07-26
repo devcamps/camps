@@ -49,7 +49,7 @@ INSERT INTO vcs_types VALUES ('svk', 'SVK');
 
 CREATE TABLE camp_numbers (
 	number	INTEGER PRIMARY KEY
-	CHECK (number > 0 AND number < 100)
+	CHECK (number >= 0 AND number < 100)
 ) ENGINE=InnoDB;
 
 INSERT INTO camp_numbers VALUES (10);

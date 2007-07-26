@@ -44,7 +44,7 @@ INSERT INTO vcs_types VALUES ('svn', 'Subversion');
 INSERT INTO vcs_types VALUES ('svk', 'SVK');
 
 /* Since MySQL doesn't have sequences, and it's quite difficult to have a reliable query that finds the lowest
-   available camp number, we'll use this dummy table populated with numbers 1-99, which we can join against
+   available camp number, we'll use this dummy table populated with numbers 10-99, which we can join against
    to find the lowest available value. */
 
 CREATE TABLE camp_numbers (
@@ -52,15 +52,6 @@ CREATE TABLE camp_numbers (
 	CHECK (number > 0 AND number < 100)
 ) ENGINE=InnoDB;
 
-INSERT INTO camp_numbers VALUES (1);
-INSERT INTO camp_numbers VALUES (2);
-INSERT INTO camp_numbers VALUES (3);
-INSERT INTO camp_numbers VALUES (4);
-INSERT INTO camp_numbers VALUES (5);
-INSERT INTO camp_numbers VALUES (6);
-INSERT INTO camp_numbers VALUES (7);
-INSERT INTO camp_numbers VALUES (8);
-INSERT INTO camp_numbers VALUES (9);
 INSERT INTO camp_numbers VALUES (10);
 INSERT INTO camp_numbers VALUES (11);
 INSERT INTO camp_numbers VALUES (12);

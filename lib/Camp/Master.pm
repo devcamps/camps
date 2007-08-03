@@ -1761,11 +1761,10 @@ sub _database_running_check_pg {
 sub _database_running_check_mysql {
     my $conf = shift;
     # check for running MySQL on this database.
-printf STDERR "MySQL running check; config hash:\n%s\n", Data::Dumper::Dumper($conf);
-    if (system("mysqladmin --defaults-file=$conf->{db_conf} ping") == 0) {
+    my $opts = camp_mysql_options( user => 'root', no_database => 1, config => $conf );
+    if (do_system_soft("mysqladmin $opts ping") == 0) {
         # stop running MySQL
-        my $opts = camp_mysql_options( user => 'root', no_database => 1, config => $conf );
-        system("mysqladmin $opts shutdown")
+        do_system_soft("mysqladmin $opts shutdown") == 0
             or die "Error stopping running MySQL instance!\n"
         ;
     }

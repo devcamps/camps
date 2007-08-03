@@ -1235,7 +1235,10 @@ sub create_camp_path {
             unless $replace
         ;
         my $dir = pushd($cfg->{path}) or die "Couldn't chdir $cfg->{path}: $!\n";
-
+        # rmtree will fail on write-protected .svn directories; remove these with a find operation
+        -d $_ && do_system(sprintf('find %s %s',  $_, q(-name '.svn' -type d -prune -exec rm -rf '{}' \\;)))
+            for @{$conf_hash->{camp_subdirectories}}
+        ;
         rmtree(
             $conf_hash->{camp_subdirectories},
             0,
@@ -1365,13 +1368,14 @@ sub _initialize_svk {
 }
 
 sub vcs_checkout {
+    my $replace = shift;
     my $conf = config_hash();
     my $vcs = vcs_type();
 
     my @cmds;
 
     if ($vcs eq 'svn') {
-        create_camp_path($conf->{number});
+        create_camp_path($conf->{number}, $replace);
         @cmds = (
             [
                 'svn co file://%s %s',
@@ -1454,7 +1458,9 @@ sub prepare_ic {
     $file = "$conf->{icroot}/bin/compile_link";
     if (-f $file) {
         do_system("$file -s $conf->{icroot}/var/run/socket --source $conf->{icroot}/src");
-        mkdir $conf->{cgidir} or die "error making cgi-bin directory: $!\n";
+        if (! -d $conf->{cgidir}) {
+	        mkdir $conf->{cgidir} or die "error making cgi-bin directory: $!\n";
+        }
         do_system("cp -p $conf->{icroot}/src/vlink $conf->{cgidir}/$_")
             for @{$conf->{catalog_linker_filenames}};
         # revert hardcoded changes to src/ by removing it, then re-fetching from Subversion
@@ -1755,7 +1761,8 @@ sub _database_running_check_pg {
 sub _database_running_check_mysql {
     my $conf = shift;
     # check for running MySQL on this database.
-    if (system("mysqladmin --defaults-file=$conf->{db_my_conf} ping") == 0) {
+printf STDERR "MySQL running check; config hash:\n%s\n", Data::Dumper::Dumper($conf);
+    if (system("mysqladmin --defaults-file=$conf->{db_conf} ping") == 0) {
         # stop running MySQL
         my $opts = camp_mysql_options( user => 'root', no_database => 1, config => $conf );
         system("mysqladmin $opts shutdown")
@@ -2351,6 +2358,30 @@ sub camp_type_list {
     ) };
 }
 
+sub _camp_list_sql {
+    return _camp_db_type_dispatcher( '_camp_list_sql' )->( @_ );
+}
+
+sub _camp_list_sql_pg {
+    my $where = shift;
+    return <<SQL;
+SELECT c.*, u.name, u.email, c.create_date::DATE as create_date_display
+FROM camps c, camp_users u
+WHERE c.username = u.username$where
+ORDER BY c.camp_number ASC
+SQL
+}
+
+sub _camp_list_sql_mysql {
+    my $where = shift;
+    return <<SQL;
+SELECT c.*, u.name, u.email, c.create_date as create_date_display
+FROM camps c, camp_users u
+WHERE c.username = u.username$where
+ORDER BY c.camp_number ASC
+SQL
+}
+
 sub camp_list {
     my %opt = @_;
     die "You must specify a camp type!\n"
@@ -2363,12 +2394,7 @@ sub camp_list {
         @args = ($opt{type});
     }
 
-    my $sth = dbh()->prepare(<<SQL);
-SELECT c.*, u.name, u.email, c.create_date::DATE as create_date_display
-FROM camps c, camp_users u
-WHERE c.username = u.username$where
-ORDER BY c.camp_number ASC
-SQL
+    my $sth = dbh()->prepare( _camp_list_sql($where) );
 
     my @result;
     $sth->execute(@args);

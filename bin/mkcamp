@@ -80,7 +80,7 @@ initialize(
 );
 
 # Get camp # and verify everything's ok with camp database
-unless ($opt{number} and $opt{number} =~ /^\d+$/) {
+unless (defined($opt{number}) and $opt{number} =~ /^\d+$/) {
 	if ($opt{skipcamp}) {
 		die "number must be specified if skipping camp accounting\n";
 	}

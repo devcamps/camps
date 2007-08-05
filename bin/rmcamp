@@ -16,7 +16,7 @@ GetOptions(
 	)
 );
 
-unless ($conf{number} and $conf{number} =~ /\A\d+\z/) {
+unless (defined($conf{number}) and $conf{number} =~ /^\d+$/) {
 	die "please specify number of camp to delete with --number\n";
 }
 

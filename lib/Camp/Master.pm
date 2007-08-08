@@ -2437,3 +2437,89 @@ are created and managed over time.
 
 =cut
 
+my $MEG = 1024*1024;
+my $GIG = 1024*1024*1024;
+my $CAMP_SIZE_MB = 50;
+my $DB_SIZE_GB = 5;
+$ENV{PATH} = '/bin:/usr/bin';
+
+sub _parse_df_output {
+	my $string = shift;
+	if ($string =~ m{^(/\S*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%)\s+(/\S*)}) {
+		my %df;
+		@df{qw/ fs size used available percent mount /} =
+               ($1, $2,  $3,     $4,     $5,    $6);
+		return \%df;
+	}
+	return;
+}
+
+sub check_camp_size {
+
+	## Check the available local disk space
+
+    my $conf = config_hash();
+	my $campsize = _parse_df_output(qx{ df -B$MEG -P "$conf->{root}" | tail -1 });
+	if (!$campsize) {
+		warn "Could not figure out local disk space usage: skipping check\n";
+	}
+	else {
+		## Approximate size of a camp in Megabytes
+		my $camp_size = $CAMP_SIZE_MB;
+		my $camp_size_warning = $camp_size * 3;
+		my $camp_size_error = $camp_size * 1.5;
+		if ($campsize->{available} <= $camp_size_error) {
+			warn qq{Sorry, there is not enough local disk space on $campsize->{mount} to safely create a new camp\n};
+			warn qq{Available disk space: $campsize->{available}M. Size a new camp will take up: ${camp_size}M\n};
+			exit;
+		}
+		if ($campsize->{available} <= $camp_size_warning) {
+			warn qq{Warning! Local disk space is very tight on $campsize->{mount}\n};
+			warn qq{Available disk space: $campsize->{available}M. Size a new camp will take up: ${camp_size}M\n};
+			if (!$conf->{"ignore-size-warning"}) {
+				warn qq{If you really want to run anyway, please use the --ignore-size-warning option\n};
+				exit;
+			}
+		}
+	}
+}
+
+sub check_db_size {
+
+	## Check the available (remote) database disk space
+
+    my $conf = config_hash();
+	my $ssh = "ssh -axqT -o BatchMode=yes -i /home/camp/etc/id_dsa.bc-camp-robot";
+	my $dbsize = parse_df_output(qx{ $ssh $conf->{dbhost} 'df -B$GIG -P `ls -d ~$conf->{admin}` | tail -1'});
+	if (!$dbsize) {
+		warn "Could not figure out disk space usage on $conf->{dbhost}: skipping check\n";
+	}
+	else {
+		## Figure out the current database size
+		my $sizefile = '/home/camp/pgsql.cold.size';
+		my $camp_db_size = $DB_SIZE_GB; ## Rough guess (in GB) if we can't read it from the file above
+		my $flysize = qx{$ssh $conf->{dbhost} '(cat $sizefile | cut -f1) 2>&1'};
+		if ($flysize !~ /^\d+$/) {
+			warn "Database size file not found, falling back to a guess of ${camp_db_size}G\n";
+		}
+		else {
+			$camp_db_size = int ($flysize / 1024 / 1024);
+		}
+		my $camp_db_size_warning = $camp_db_size * 4;
+		my $camp_db_size_error = $camp_db_size * 2;
+		if ($dbsize->{available} <= $camp_db_size_error) {
+			warn qq{Sorry, there is not enough disk space on $dbsize->{mount} (on $conf->{dbhost}) to safely create a new camp database\n};
+			warn qq{Available disk space: $dbsize->{available}G. Size a new camp database will take up: ${camp_db_size}G\n};
+			exit;
+		}
+		if ($dbsize->{available} <= $camp_db_size_warning) {
+			warn qq{Warning! Disk space is very tight on $dbsize->{mount} (on $conf->{dbhost})\n};
+			warn qq{Available disk space: $dbsize->{available}G. Size a new camp will take up: ${camp_db_size}G\n};
+			if (!$conf->{"ignore-size-warning"}) {
+				warn qq{If you really want to run anyway, please use the --ignore-size-warning option\n};
+				exit;
+			}
+		}
+	}
+}
+

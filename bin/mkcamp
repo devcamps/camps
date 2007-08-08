@@ -26,6 +26,7 @@ GetOptions(
 		help
 		type=s
 		vcs=s
+		ignore-size-warning
 	)
 );
 
@@ -78,6 +79,12 @@ initialize(
 	vcs_type => $opt{vcs},
     user => $<,
 );
+
+# Make sure we have enough disk space for our camp and database
+if (!$opt{skipdb}) {
+	## check_camp_size();
+	## check_db_size();
+}
 
 # Get camp # and verify everything's ok with camp database
 unless (defined($opt{number}) and $opt{number} =~ /^\d+$/) {

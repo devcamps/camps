@@ -91,7 +91,7 @@ if ($opt{help}) {
 my $display_output_headers = ! $opt{quiet};
 my $camp_number = resolve_camp(shift);
 
-if (!$camp_number) {
+if (!defined $camp_number) {
     exit 1 if $opt{quiet};
     die "$0: couldn't determine camp; specify in command line or \$ENV{CAMP}\n";
 }
@@ -125,14 +125,14 @@ sub resolve_camp {
     my $camp = shift;
 
     # explicit param first
-    return $camp if $camp;
+    return $camp if defined $camp && $camp =~ /\d\d?/;
 
     # look at environment
-    return $ENV{CAMP} if $ENV{CAMP};
+    return $ENV{CAMP} if defined $ENV{CAMP} && $ENV{CAMP} =~ /\d\d?/;
     
     # look at path
-    getcwd() =~ m/camp(\d\d)/;
-    return $1 if $1;
+    getcwd() =~ m/camp(\d\d?)/;
+    return $1 if defined $1;
 
     # just return undef if we can't resolve further
     return;

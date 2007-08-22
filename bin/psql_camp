@@ -11,23 +11,23 @@ use Camp::Master;
 my $camp;
 
 if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
-	# first command-line argument can be camp number
-	$camp = shift;
+    # first command-line argument can be camp number
+    $camp = shift;
 }
 
 unless ($camp) {
-	# if not specified, get current camp # from current working directory
-	my $dir = getcwd();
-	die "current working directory doesn't exist!\n" unless $dir;
-	$dir =~ m{/camp(\d+)} and $camp = $1;
+    # if not specified, get current camp # from current working directory
+    my $dir = getcwd();
+    die "current working directory doesn't exist!\n" unless $dir;
+    $dir =~ m{/camp(\d+)} and $camp = $1;
 }
 
 unless (defined($camp)) {
-	die "Please specify a camp #\n";
+    die "Please specify a camp #\n";
 }
 
 initialize(
-	camp => $camp,
+    camp => $camp,
 );
 
 my $conf = config_hash();

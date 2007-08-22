@@ -46,6 +46,7 @@ use base qw(Exporter);
     prepare_rails
     process_copy_paths
     register_camp
+    resolve_camp_number
     role_password
     roles
     roles_path
@@ -1276,6 +1277,23 @@ sub unregister_camp {
     $sth->execute($conf->{number})
         or die "Failed to unregister camp $conf->{number} in database!\n";
     $sth->finish;
+    return;
+}
+
+sub resolve_camp_number {
+    my $camp = shift;
+
+    # explicit param first
+    return $camp if defined $camp && $camp =~ /\A\d+\z/;
+
+    # look at environment
+    return $ENV{CAMP} if defined $ENV{CAMP} && $ENV{CAMP} =~ /\A\d+\z/;
+    
+    # look at path
+    getcwd() =~ m|/camp(\d+)/|;
+    return $1 if defined $1;
+
+    # just return undef if we can't resolve further
     return;
 }
 

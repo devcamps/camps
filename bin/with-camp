@@ -5,7 +5,7 @@ then
   CAMP=$1
   shift
 else
-  CAMP=`current-camp`
+  CAMP=`camp-info --number --quiet --no-newline`
 fi
 
 export CAMP=$CAMP

@@ -1,0 +1,139 @@
+#!/usr/local/bin/perl
+
+# camp information getter/setter
+
+use strict;
+use warnings;
+
+use lib '/home/camp/lib';
+
+use Camp::Master;
+use Cwd;
+use Getopt::Long;
+
+*STDOUT->autoflush(1);
+*STDERR->autoflush(1);
+
+die "Don't run this as root!\n" if $< == 0;
+
+my (@attribute_list,%opt,@all_fields,@requested_fields);
+
+# populate initial attributes for Getopt based on lookup table.
+my %queryable_attributes = (
+    camp_number => 'get',
+    camp_type   => 'get',
+    vcs_type    => 'get',
+    username    => 'get',
+    comment     => 'getset',
+);
+
+my %attribute_aliases = (
+    number => 'camp_number',
+    num    => 'camp_number',
+    type   => 'camp_type',
+    name   => 'username',
+    vcs    => 'vcs_type',
+);
+
+@all_fields = sort keys %queryable_attributes;
+
+while (my ($attribute, $type) = each %queryable_attributes) {
+    my @aliases = $attribute;
+    
+    # construct a list of aliases
+    while (my ($alias, $aliased_attribute) = each %attribute_aliases) {
+        push @aliases, $alias if $aliased_attribute eq $attribute;
+    }
+
+    my $get_clause = join "|", @aliases;
+    my $set_clause = join "|", map { "set-$_" } @aliases;
+    
+    push @attribute_list, $get_clause     if $type =~ /get/;
+    push @attribute_list, "$set_clause=s" if $type =~ /set/;
+}
+
+my $USAGE=<<EOH;
+Usage: camp-info [options] [ number | path ]
+
+Options:
+
+--comment       Return the comment for the current or specified camp.
+
+--set-comment   Set the comment for the current or specified camp.
+
+--number        Return the camp number for the current or specified camp.
+
+--type          Return the camp type for the current or specific camp.
+
+--vcs           Return the vcs in use for the current or specific camp.
+
+--quiet,-q      Suppress the display of informational headers.  Useful in scripts.
+
+--no-newline,-n Suppress the display of the newline in the output.  Useful in scripts.
+
+--help          This help screen
+
+EOH
+
+GetOptions(
+    \%opt,
+    "help|h",
+    "quiet|q",
+    "no-newline|n",
+    @attribute_list,
+) or die $USAGE;
+
+if ($opt{help}) {
+    print $USAGE;
+    exit;
+}
+
+my $display_output_headers = ! $opt{quiet};
+my $camp_number = resolve_camp(shift);
+
+if (!$camp_number) {
+    exit 1 if $opt{quiet};
+    die "$0: couldn't determine camp; specify in command line or \$ENV{CAMP}\n";
+}
+
+my $info = Camp::Master::get_camp_info( $camp_number );
+my $set_attribute;
+
+# TODO: make the order of the attribute flags passed match the order of the output
+foreach my $attribute (keys %queryable_attributes) {
+    if ($opt{$attribute}) {
+        push @requested_fields, $attribute;
+    }
+    if ($opt{"set-$attribute"}) {
+        # TODO: generalize this; only one settable attribute now, so we're weenie-ing out.
+        warn "set-$attribute not supported" and next unless $attribute eq 'comment';
+
+        $set_attribute = 1;
+
+        # TODO: check user privs to change the camp...
+        # update the comment field;
+        Camp::Master::set_camp_comment($camp_number, $opt{'set-comment'});
+    }
+}
+
+@requested_fields = @all_fields unless @requested_fields || $set_attribute;
+
+# actual output based on passed params
+print(($display_output_headers && "$_: "), $info->{$_}, ($opt{'no-newline'} ? '' : "\n") ) for @requested_fields;
+
+sub resolve_camp {
+    my $camp = shift;
+
+    # explicit param first
+    return $camp if $camp;
+
+    # look at environment
+    return $ENV{CAMP} if $ENV{CAMP};
+    
+    # look at path
+    getcwd() =~ m/camp(\d\d)/;
+    return $1 if $1;
+
+    # just return undef if we can't resolve further
+    return;
+}

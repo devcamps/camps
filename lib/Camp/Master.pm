@@ -53,10 +53,10 @@ use base qw(Exporter);
     server_control
     set_camp_comment
     set_camp_user
-	svk_local_path
-	svk_mirror_path
-	svn_repository
-	type
+    svk_local_path
+    svk_mirror_path
+    svn_repository
+    type
     type_path
     unregister_camp
     vcs_checkout
@@ -592,10 +592,9 @@ sub get_camp_info {
 }
 
 sub set_camp_comment {
-    my ($comment) = @_;
-    
-    my $conf = config_hash();
-    dbh()->do('UPDATE camps SET comment = ? WHERE camp_number = ?', undef, $comment, $conf->{number},); 
+    my ($number, $comment) = @_;
+
+    dbh()->do('UPDATE camps SET comment = ? WHERE camp_number = ?', undef, $comment, $number); 
 }
 
 sub camp_user {
@@ -1301,10 +1300,10 @@ sub svn_checkout {
 }
 
 sub svn_update {
-	my $conf = config_hash();
+    my $conf = config_hash();
 
-	my $path = pushd( $conf->{path} ) or die "Cannot chdir to $conf->{path}: $!\n";
-	return do_system('svn up');
+    my $path = pushd( $conf->{path} ) or die "Cannot chdir to $conf->{path}: $!\n";
+    return do_system('svn up');
 }
 
 sub svk_mirror_path {
@@ -1316,7 +1315,7 @@ sub svk_mirror_path {
 
 sub svk_local_path {
     my $conf = config_hash();
-	my $local = $conf->{repo_svk_local};
+    my $local = $conf->{repo_svk_local};
     unless (defined($local) and $local =~ /\S/) {
         my $name = $conf->{name};
         die "svk_local_path called when camp name not yet defined!\n"
@@ -1423,7 +1422,7 @@ sub vcs_refresh {
     else {
         $cmd = 'up';
     }
-	$cmd = $base eq 'svk' ? 'pull' : 'up';
+    $cmd = $base eq 'svk' ? 'pull' : 'up';
     my $dir = pushd( config_hash()->{path} );
     return do_system($base, $cmd);
 }
@@ -1459,7 +1458,7 @@ sub prepare_ic {
     if (-f $file) {
         do_system("$file -s $conf->{icroot}/var/run/socket --source $conf->{icroot}/src");
         if (! -d $conf->{cgidir}) {
-	        mkdir $conf->{cgidir} or die "error making cgi-bin directory: $!\n";
+            mkdir $conf->{cgidir} or die "error making cgi-bin directory: $!\n";
         }
         do_system("cp -p $conf->{icroot}/src/vlink $conf->{cgidir}/$_")
             for @{$conf->{catalog_linker_filenames}};
@@ -2134,39 +2133,39 @@ sub do_system {
 }
 
 sub generate_nice_password {
-	my @v = qw( a e i o u );
-	my @c = qw( b d f g h j k m n p r s t v w z );  # no l, y
-	my @c2 = (@c, qw( c q x ));
-	my @d = (2..9);   # no 0, 1
+    my @v = qw( a e i o u );
+    my @c = qw( b d f g h j k m n p r s t v w z );  # no l, y
+    my @c2 = (@c, qw( c q x ));
+    my @d = (2..9);   # no 0, 1
 
-	my $did_numbers = 0;
-	my $did_letters = 0;
-	my $last_numbers;
-	my $pass = '';
-	for (1..3) {
-		my $l = rand(10) > 7;
-		if ($last_numbers) {
-			$l = 1;
-		}
-		elsif ($_ > 2) {
-			undef $l if ! $did_numbers;
-			$l = 1 if ! $did_letters;
-		}
-		if ($l) {
-			$pass .= $c[rand @c] . $v[rand @v];
-			$pass .= $c2[rand @c2] if rand(10) > 5;
-			++$did_letters;
-			undef $last_numbers;
-		}
-		else {
-			$pass .= $d[rand @d];
-			$pass .= $d[rand @d] if rand(10) > 3;
-			++$did_numbers;
-			$last_numbers = 1;
-		}
-		redo if $_ > 2 and length($pass) < 8;
-	}
-	return $pass;
+    my $did_numbers = 0;
+    my $did_letters = 0;
+    my $last_numbers;
+    my $pass = '';
+    for (1..3) {
+        my $l = rand(10) > 7;
+        if ($last_numbers) {
+            $l = 1;
+        }
+        elsif ($_ > 2) {
+            undef $l if ! $did_numbers;
+            $l = 1 if ! $did_letters;
+        }
+        if ($l) {
+            $pass .= $c[rand @c] . $v[rand @v];
+            $pass .= $c2[rand @c2] if rand(10) > 5;
+            ++$did_letters;
+            undef $last_numbers;
+        }
+        else {
+            $pass .= $d[rand @d];
+            $pass .= $d[rand @d] if rand(10) > 3;
+            ++$did_numbers;
+            $last_numbers = 1;
+        }
+        redo if $_ > 2 and length($pass) < 8;
+    }
+    return $pass;
 }
 
 sub server_control {
@@ -2444,82 +2443,82 @@ my $DB_SIZE_GB = 5;
 $ENV{PATH} = '/bin:/usr/bin';
 
 sub _parse_df_output {
-	my $string = shift;
-	if ($string =~ m{^(/\S*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%)\s+(/\S*)}) {
-		my %df;
-		@df{qw/ fs size used available percent mount /} =
+    my $string = shift;
+    if ($string =~ m{^(/\S*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+%)\s+(/\S*)}) {
+        my %df;
+        @df{qw/ fs size used available percent mount /} =
                ($1, $2,  $3,     $4,     $5,    $6);
-		return \%df;
-	}
-	return;
+        return \%df;
+    }
+    return;
 }
 
 sub check_camp_size {
 
-	## Check the available local disk space
+    ## Check the available local disk space
 
     my $conf = config_hash();
-	my $campsize = _parse_df_output(qx{ df -B$MEG -P "$conf->{root}" | tail -1 });
-	if (!$campsize) {
-		warn "Could not figure out local disk space usage: skipping check\n";
-	}
-	else {
-		## Approximate size of a camp in Megabytes
-		my $camp_size = $CAMP_SIZE_MB;
-		my $camp_size_warning = $camp_size * 3;
-		my $camp_size_error = $camp_size * 1.5;
-		if ($campsize->{available} <= $camp_size_error) {
-			warn qq{Sorry, there is not enough local disk space on $campsize->{mount} to safely create a new camp\n};
-			warn qq{Available disk space: $campsize->{available}M. Size a new camp will take up: ${camp_size}M\n};
-			exit;
-		}
-		if ($campsize->{available} <= $camp_size_warning) {
-			warn qq{Warning! Local disk space is very tight on $campsize->{mount}\n};
-			warn qq{Available disk space: $campsize->{available}M. Size a new camp will take up: ${camp_size}M\n};
-			if (!$conf->{"ignore-size-warning"}) {
-				warn qq{If you really want to run anyway, please use the --ignore-size-warning option\n};
-				exit;
-			}
-		}
-	}
+    my $campsize = _parse_df_output(qx{ df -B$MEG -P "$conf->{root}" | tail -1 });
+    if (!$campsize) {
+        warn "Could not figure out local disk space usage: skipping check\n";
+    }
+    else {
+        ## Approximate size of a camp in Megabytes
+        my $camp_size = $CAMP_SIZE_MB;
+        my $camp_size_warning = $camp_size * 3;
+        my $camp_size_error = $camp_size * 1.5;
+        if ($campsize->{available} <= $camp_size_error) {
+            warn qq{Sorry, there is not enough local disk space on $campsize->{mount} to safely create a new camp\n};
+            warn qq{Available disk space: $campsize->{available}M. Size a new camp will take up: ${camp_size}M\n};
+            exit;
+        }
+        if ($campsize->{available} <= $camp_size_warning) {
+            warn qq{Warning! Local disk space is very tight on $campsize->{mount}\n};
+            warn qq{Available disk space: $campsize->{available}M. Size a new camp will take up: ${camp_size}M\n};
+            if (!$conf->{"ignore-size-warning"}) {
+                warn qq{If you really want to run anyway, please use the --ignore-size-warning option\n};
+                exit;
+            }
+        }
+    }
 }
 
 sub check_db_size {
 
-	## Check the available (remote) database disk space
+    ## Check the available (remote) database disk space
 
     my $conf = config_hash();
-	my $ssh = "ssh -axqT -o BatchMode=yes -i /home/camp/etc/id_dsa.bc-camp-robot";
-	my $dbsize = parse_df_output(qx{ $ssh $conf->{dbhost} 'df -B$GIG -P `ls -d ~$conf->{admin}` | tail -1'});
-	if (!$dbsize) {
-		warn "Could not figure out disk space usage on $conf->{dbhost}: skipping check\n";
-	}
-	else {
-		## Figure out the current database size
-		my $sizefile = '/home/camp/pgsql.cold.size';
-		my $camp_db_size = $DB_SIZE_GB; ## Rough guess (in GB) if we can't read it from the file above
-		my $flysize = qx{$ssh $conf->{dbhost} '(cat $sizefile | cut -f1) 2>&1'};
-		if ($flysize !~ /^\d+$/) {
-			warn "Database size file not found, falling back to a guess of ${camp_db_size}G\n";
-		}
-		else {
-			$camp_db_size = int ($flysize / 1024 / 1024);
-		}
-		my $camp_db_size_warning = $camp_db_size * 4;
-		my $camp_db_size_error = $camp_db_size * 2;
-		if ($dbsize->{available} <= $camp_db_size_error) {
-			warn qq{Sorry, there is not enough disk space on $dbsize->{mount} (on $conf->{dbhost}) to safely create a new camp database\n};
-			warn qq{Available disk space: $dbsize->{available}G. Size a new camp database will take up: ${camp_db_size}G\n};
-			exit;
-		}
-		if ($dbsize->{available} <= $camp_db_size_warning) {
-			warn qq{Warning! Disk space is very tight on $dbsize->{mount} (on $conf->{dbhost})\n};
-			warn qq{Available disk space: $dbsize->{available}G. Size a new camp will take up: ${camp_db_size}G\n};
-			if (!$conf->{"ignore-size-warning"}) {
-				warn qq{If you really want to run anyway, please use the --ignore-size-warning option\n};
-				exit;
-			}
-		}
-	}
+    my $ssh = "ssh -axqT -o BatchMode=yes -i /home/camp/etc/id_dsa.bc-camp-robot";
+    my $dbsize = parse_df_output(qx{ $ssh $conf->{dbhost} 'df -B$GIG -P `ls -d ~$conf->{admin}` | tail -1'});
+    if (!$dbsize) {
+        warn "Could not figure out disk space usage on $conf->{dbhost}: skipping check\n";
+    }
+    else {
+        ## Figure out the current database size
+        my $sizefile = '/home/camp/pgsql.cold.size';
+        my $camp_db_size = $DB_SIZE_GB; ## Rough guess (in GB) if we can't read it from the file above
+        my $flysize = qx{$ssh $conf->{dbhost} '(cat $sizefile | cut -f1) 2>&1'};
+        if ($flysize !~ /^\d+$/) {
+            warn "Database size file not found, falling back to a guess of ${camp_db_size}G\n";
+        }
+        else {
+            $camp_db_size = int ($flysize / 1024 / 1024);
+        }
+        my $camp_db_size_warning = $camp_db_size * 4;
+        my $camp_db_size_error = $camp_db_size * 2;
+        if ($dbsize->{available} <= $camp_db_size_error) {
+            warn qq{Sorry, there is not enough disk space on $dbsize->{mount} (on $conf->{dbhost}) to safely create a new camp database\n};
+            warn qq{Available disk space: $dbsize->{available}G. Size a new camp database will take up: ${camp_db_size}G\n};
+            exit;
+        }
+        if ($dbsize->{available} <= $camp_db_size_warning) {
+            warn qq{Warning! Disk space is very tight on $dbsize->{mount} (on $conf->{dbhost})\n};
+            warn qq{Available disk space: $dbsize->{available}G. Size a new camp will take up: ${camp_db_size}G\n};
+            if (!$conf->{"ignore-size-warning"}) {
+                warn qq{If you really want to run anyway, please use the --ignore-size-warning option\n};
+                exit;
+            }
+        }
+    }
 }
 

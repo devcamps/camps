@@ -1290,7 +1290,7 @@ sub resolve_camp_number {
     return $ENV{CAMP} if defined $ENV{CAMP} && $ENV{CAMP} =~ /\A\d+\z/;
     
     # look at path
-    getcwd() =~ m|/camp(\d+)/|;
+    getcwd() =~ m{/camp(\d+)\b};
     return $1 if defined $1;
 
     # just return undef if we can't resolve further

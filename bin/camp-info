@@ -69,7 +69,9 @@ Options:
 
 --quiet,-q      Suppress the display of informational headers.  Useful in scripts.
 
---no-newline,-n Suppress the display of the newline in the output.  Useful in scripts.
+--no-newline,-n Suppress a final newline in the output.  Useful in scripts.
+
+--separator     Set the field separator when multiple fields are displayed (default \n).  Useful in scripts.
 
 --help          This help screen
 
@@ -80,6 +82,7 @@ GetOptions(
     "help|h",
     "quiet|q",
     "no-newline|n",
+    "separator|sep=s",
     @attribute_list,
 ) or die $USAGE;
 
@@ -119,4 +122,7 @@ foreach my $attribute (keys %queryable_attributes) {
 @requested_fields = @all_fields unless @requested_fields || $set_attribute;
 
 # actual output based on passed params
-print(($display_output_headers && "$_: "), $info->{$_}, ($opt{'no-newline'} ? '' : "\n") ) for @requested_fields;
+my $sep = $opt{separator} || qq{\n};
+
+# TODO: this is quite confusing, and should be cleaned up.
+print((join $sep, map { ($display_output_headers ? "$_: " : '') . $info->{$_} } @requested_fields ) . ($opt{'no-newline'} ? '' : "\n"));

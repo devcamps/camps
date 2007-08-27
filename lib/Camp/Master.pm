@@ -414,7 +414,7 @@ sub process_copy_paths {
         my $src = $copy->{source};
         my $target = $copy->{target};
         $src = substitute_hash_tokens($src, $conf) if $copy->{parse_source};
-        $target = substitute_hash_tokesn($target, $conf) if $copy->{parse_target};
+        $target = substitute_hash_tokens($target, $conf) if $copy->{parse_target};
 
         my $src_trail++ if $src =~ m{/$};
         my $target_trail++ if $target =~ m{/$};

@@ -143,13 +143,19 @@ sub set_vcs_type {
 }
 
 sub vcs_type {
-    die "No vcs_type set!\n" unless $vcs_type;
-    return $vcs_type;
+    my $vcs = vcs_type_is_set();
+    die "No vcs_type set!  Please set the version control system for your camp/camp-type.\n" unless $vcs;
+    return $vcs;
+}
+
+sub vcs_type_is_set {
+    return $vcs_type && validate_vcs_type($vcs_type);
 }
 
 sub validate_vcs_type {
     my $new_type = shift;
-    return ($new_type =~ /\A(?:svn|svk)\z/);
+    my ($type) = ($new_type =~ /\A(svn|svk|git)\z/);
+    return $type;
 }
 
 sub read_camp_config {
@@ -458,7 +464,7 @@ sub process_copy_paths {
                     die "The 'exclude' entry must be a simple scalar or an array.\n";
                 }
             }
-            unshift @exclude, '**.svn**';
+            unshift @exclude, vcs_exclude_patterns();
             my $exclude_args = join ' ', map { "--exclude='$_'" } @exclude;
             do_system(qq{rsync --stats -a --delete $exclude_args $src $target});
             # system("cp -a $src $target") == 0 or die "Failed to copy: $!\n";
@@ -1074,19 +1080,83 @@ The locality to use for your camp's SSL certificate (defaults to 'New York').
 
 The organization name to use for your camp's SSL certificate (defaults to 'End Point Corporation').
 
+=item vcs_default_type
+
+Specifies the default version control system to use for the camp type.  This is optional, but is
+certainly highly convenient for camp users and makes things easier to manage, as providing this
+means that users don't typically need to question whether they should be using a Subversion-based
+VCS type ('svn' or 'svk') versus a Git type ('git').
+
+If this is set for a camp type, then it is not necessary for a user to specify their VCS type
+when creating an instance of that camp.  The value of I<vcs_default_type> has no bearing on existing
+camps; each extant camp's original VCS type is recorded in the camp database and will not change
+without heroic efforts on the part of the camp's owner.
+
 =item repo_path
+
+Use this to specify the SCM repository path.  This is not specific to VCS type and has been preserved
+for legacy purposes.  SVN and Git repository paths can be specified in type-specific manner using
+I<repo_path_svn> and I<repo_path_git>, respectively; when those are used, they override the
+I<repo_path> value.
+
+There is no default value for I<repo_path>, so don't count on it being present in your code
+unless you are quite sure of what you're doing.
+
+=item repo_path_svn
 
 Use this to specify the main project Subversion repository path; is is assumed that it will be
 accessed via the "file://" protocol, meaning that you need only provide the path to the repository (and
 any subdirectories within that repository).
 
-If not specified, the repository is expected to live at:
+When determining the Subversion repository location, B<Camp::Master> consults, in this order:
 
- I<type_path> . '/svnrepo/trunk'
+=over
 
-There is no default value for I<repo_path>, however, so do not count on this being available for
+=item *
+
+I<repo_path_svn>
+
+=item *
+
+I<repo_path>
+
+=item *
+
+Default: I<type_path> . '/svnrepo/trunk'
+
+=back
+
+There is no default value for I<repo_path_svn>, however, so do not count on this being available for
 token substitution unless you explicitly set it in the relevant local-config.  The default repository
 location described above is enforced through logic, but not within the master configuration hash.
+
+=item repo_path_git
+
+Use this to specify the main project Git repository path; no assumptions about the path/URL are
+made, so you are free to specify a file path (which is most likely as of this writing), a git://*
+URL, an rsync://* URL, etc.
+
+Similar to determination of Subversion repository location, B<Camp::Master> consults the following
+items in order when finding a camp type's Git repository location:
+
+=over
+
+=item *
+
+I<repo_path_git>
+
+=item *
+
+I<repo_path>
+
+=item *
+
+Default: I<type_path> . '/repo.git'
+
+=back
+
+There is no default value for I<repo_path_git>, so you cannot count on its presence unless you
+know what you're doing and are working with a camp type that definitely specifies a value for it.
 
 =item repo_mirror
 
@@ -1099,6 +1169,15 @@ If not specified, the SVK mirroring path used will be:
  '//mirror/' . I<type> . '/trunk'
 
 Like I<repo_path>, there is no default value for this particular setting.
+
+=item git_clone_options
+
+Options to pass literally to the "git clone ..." call when building a new camp and cloning from
+the source Git repo.  See the "git-clone" man pages for valid options.  There is no default,
+meaning that the effective default behavior is invoking git-clone without options.
+
+Git is efficient in its use of disk space, but by using the various options like local, shared,
+or reference can potentially be even more efficient and speedy.
 
 =item repo_svk_local
 
@@ -1211,6 +1290,10 @@ sub config_hash {
         $conf_hash->{http_url}  = 'http://'  . $conf_hash->{hostname} . ':' . $conf_hash->{http_port}  . '/';
         $conf_hash->{https_url} = 'https://' . $conf_hash->{hostname} . ':' . $conf_hash->{https_port} . '/';
 
+        if (!vcs_type_is_set() and defined($conf_hash->{vcs_default_type}) and $conf_hash->{vcs_default_type} =~ /\S/) {
+            set_vcs_type( $conf_hash->{vcs_default_type} );
+        }
+
         my %ssl_defaults = (
             C   => 'US',
             ST  => 'New York',
@@ -1227,7 +1310,7 @@ sub config_hash {
     return $conf_hash;
 }
 
-sub create_camp_path {
+sub cleanup_camp_path {
     my ($camp, $replace) = @_;
     my $cfg = config_hash( $camp );
     if (-d $cfg->{path}) {
@@ -1237,17 +1320,22 @@ sub create_camp_path {
         my $dir = pushd($cfg->{path}) or die "Couldn't chdir $cfg->{path}: $!\n";
         # rmtree will fail on write-protected .svn directories; remove these with a find operation
         -d $_ && do_system(sprintf('find %s %s',  $_, q(-name '.svn' -type d -prune -exec rm -rf '{}' \\;)))
-            for @{$conf_hash->{camp_subdirectories}}
+            for @{$cfg->{camp_subdirectories}}
         ;
         rmtree(
-            $conf_hash->{camp_subdirectories},
+            $cfg->{camp_subdirectories},
             0,
             1,
         );
     }
-    else {
-        mkpath($conf_hash->{path}) or die "Couldn't make camp path: $conf_hash->{path}: $!\n";
-    }
+    return 1;
+}
+
+sub create_camp_path {
+    my ($camp, $replace) = @_;
+    my $cfg = config_hash( $camp );
+    cleanup_camp_path($camp, $replace);
+    mkpath($cfg->{path}) or die "Couldn't make camp path: $cfg->{path}: $!\n";
 }
 
 sub register_camp {
@@ -1297,12 +1385,32 @@ sub resolve_camp_number {
     return;
 }
 
-sub svn_repository {
-    my $repo = config_hash()->{repo_path};
-    $repo = File::Spec->catfile( type_path(), 'svnrepo', 'trunk' )
-        if !( defined($repo) and $repo =~ /\S/)
+sub git_clone_options {
+    my $options = config_hash->{git_clone_options};
+    $options = '' unless defined($options) and $options =~ /\S/;
+    return $options;
+}
+
+sub git_repository {
+    my $hash = config_hash();
+    defined($_) && /\S/ && return File::Spec->catfile( type_path(), $_ )
+        for (
+            $hash->{repo_path_git},
+            $hash->{repo_path},
+            'repo.git',
+        )
     ;
-    return $repo;
+}
+
+sub svn_repository {
+    my $hash = config_hash();
+    defined($_) && /\S/ && return File::Spec->catfile( type_path(), $_ )
+        for (
+            $hash->{repo_path_svn},
+            $hash->{repo_path},
+            'svnrepo/trunk',
+        )
+    ;
 }
 
 sub svn_checkout {
@@ -1384,6 +1492,17 @@ sub _initialize_svk {
     return;
 }
 
+sub vcs_exclude_patterns {
+    my %patterns = (
+        svn => [ '**.svn**' ],
+        git => [ '**.git**' ],
+    );
+    $patterns{svk} = $patterns{svn};
+    my $type = vcs_type();
+    my $pattern = $patterns{$type} or die "No exclusion patterns found for VCS type '$type'.\n";
+    return @$pattern;
+}
+
 sub vcs_checkout {
     my $replace = shift;
     my $conf = config_hash();
@@ -1421,6 +1540,17 @@ sub vcs_checkout {
             ],
         );
     }
+    elsif ($vcs eq 'git') {
+        cleanup_camp_path($conf->{number}, $replace);
+        @cmds = (
+            [
+                'git clone %s %s %s',
+                git_clone_options(),
+                git_repository(),
+                $conf->{path},
+            ],
+        );
+    }
     else {
         die "Unknown version control system: $vcs\n";
     }
@@ -1432,15 +1562,10 @@ sub vcs_checkout {
 
 sub vcs_refresh {
     my $base = vcs_type();
-    my $cmd;
+    my $cmd = $base eq 'svn' ? 'up' : 'pull';
     if ($base eq 'svk') {
-        $cmd = 'pull';
         _initialize_svk();
     }
-    else {
-        $cmd = 'up';
-    }
-    $cmd = $base eq 'svk' ? 'pull' : 'up';
     my $dir = pushd( config_hash()->{path} );
     return do_system($base, $cmd);
 }
@@ -1460,6 +1585,17 @@ sub vcs_remove_camp {
         );
     }
     return;
+}
+
+sub vcs_local_refresh {
+    my $vcs_type = vcs_type();
+    my %map = (
+        svn => 'svn up',
+        svk => 'svk up',
+        git => 'git checkout', 
+    );
+    my $cmd = $map{$vcs_type} or die "No local refresh command available for VCS type '$vcs_type'.\n";
+    return do_system($cmd);
 }
 
 sub prepare_ic {
@@ -1484,13 +1620,7 @@ sub prepare_ic {
         my $dir = pushd("$conf->{icroot}/src") or die "Couldn't chdir $conf->{icroot}: $!\n";
         my @files = ('tlink.pl', 'vlink.pl',);
         unlink(@files) == @files or die "Couldn't unlink one or more files: $!\n";
-        my $vcs_type = vcs_type();
-        if ($vcs_type eq 'svn') {
-            do_system('svn up');
-        }
-        elsif ($vcs_type eq 'svk') {
-            do_system('svk up');
-        }
+        vcs_local_refresh();
     }
 
     type_message('prepare_ic');
@@ -2436,6 +2566,90 @@ sub camp_list {
 
 =pod
 
+=head1 VERSION CONTROL SYSTEM OPTIONS
+
+The camp system provides three different version control choices:
+
+=over
+
+=item *
+
+Subversion ('svn')
+
+=item *
+
+SVK ('svk')
+
+=item *
+
+Git ('git')
+
+=back
+
+These can be further categorized into two options: Subversion-based ('svn' and 'svk') versus Git.  The SVK version
+control system uses an alternate interface for working with the repository, setting up the camp, etc., but it
+relies on an underlying Subversion repository and naturally will not work unless the camp type has a Subversion
+repository available.
+
+Typically speaking, use of Git for a particular camp type implies non-use of Subversion, and the opposite also holds.
+However, there is no reason that all types cannot be made available for use within the same camp type; the Git
+software suite comes with '''git-svn''', which can be used to track a Subversion repository via a Git repository.
+Therefore, all options can be available for a camp type provided the administrator takes the trouble to arrange
+it.  That arrangement takes place largely outside of the camp system itself, and would instead involve post-commit
+hooks within one or both repositories to ensure that a change in one repository is pushed to the other.
+
+B<Camp::Master> ultimately makes no assumptions about your camp type's VCS offerings; if a camp user attempts to make
+a new camp using some version control system, B<Camp::Master> will attempt to do it, and if the requested version control
+system hasn't been configured for the camp type, an error will result.  Configuration options to tell B<Camp::Master>
+about your VCS setup are fairly straightforward; see the configuration variable information for:
+
+=over
+
+=item *
+
+I<default_vcs_type>
+
+=item *
+
+I<repo_path>
+
+=item *
+
+I<repo_path_git>
+
+=item *
+
+I<repo_path_svn>
+
+=item *
+
+I<repo_mirror>
+
+=item *
+
+I<repo_svk_local>
+
+=back
+
+While no assumptions are made, the strong recommendation as of this writing is, given all options, use Git.
+Subversion is slow, inefficient in its use of disk space, relatively inflexible, bad at branching, etc.  The
+SVK system can be used on top of Subversion to accomodate for some of this but it ultimately is, in the words
+of Jon Jensen, "weak sauce".  Git does everything that SVN+SVK do and far more, more efficiently, more elegantly.
+
+=head1 GIT USE
+
+When creating a new camp using Git as the VCS type, B<Camp::Master> assumes an SVN-like flow of operations; the
+camp type specifies where the Git repository lives, and the new camp will result in a new repository that tracks
+that central repository.  Consequently, the operations used by B<Camp::Master> tend to be clone, pull, and push
+operations, for remote repository use.  When you're working within your Git-based camp, you of course need to
+keep this in mind, knowing that a checkout or a commit are only relative to the repository of that camp, and that
+you ultimately need a push to commit your stuff to the central camp repository.
+
+At this time, B<Camp::Master> doesn't provide any tools for creating a Git camp using an alternate repository
+as the repository to track; this is something that can be done using git directly, after creating a new camp.
+Create the camp with Git as the VCS choice, then use git directly within that camp to point the camp at an
+alternate remote repository.
+
 =head1 SVK USE
 
 The camp system is designed to support easy use of SVK, which effectively allows for easier branch management
@@ -2458,7 +2672,9 @@ my $MEG = 1024*1024;
 my $GIG = 1024*1024*1024;
 my $CAMP_SIZE_MB = 50;
 my $DB_SIZE_GB = 5;
-$ENV{PATH} = '/bin:/usr/bin';
+# Greg, I think this was just copied from Backcountry and needs adjustment prior to actual
+# use, but be aware that this path configuration completely screws things up.  Thanks. -- Ethan
+# $ENV{PATH} = '/bin:/usr/bin';
 
 sub _parse_df_output {
     my $string = shift;

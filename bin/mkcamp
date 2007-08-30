@@ -53,7 +53,9 @@ Options:
 --skipdb    Skip database creation.
 
 --vcs       Specify version control system to use for working copy checkout.
-            Options are "svn" (default) and "svk".
+            Options are "svn", "svk", and "git".
+            The camp type requested may provide a default, and determines
+            which options actually work.
 
 --type      The type of camp to be made; required.
             Available types are:
@@ -71,8 +73,6 @@ die "No type specified!\n" unless defined $opt{type};
 
 die "comment is required; run with --help for more info\n"
 	unless $opt{comment} or $opt{skipcamp};
-
-$opt{vcs} ||= 'svn';
 
 initialize(
     type => $opt{type},

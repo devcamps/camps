@@ -34,7 +34,7 @@ unless ($opt{number}) {
 if ($opt{usage}) {
 	$showpod++;
 }
-elsif (!$opt{number}) {
+elsif (! defined $opt{number}) {
 	$errmsg = 'Please specify a camp number';
 	$showpod++;
 }

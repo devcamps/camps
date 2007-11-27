@@ -354,7 +354,11 @@ tokens (see CAMP CONFIGURATION VARIABLES).  If not specified, parsing does not o
 If provided with a Perly true value, the target path will be parsed for camp configuration
 tokens (see CAMP CONFIGURATION VARIABLES).  If not specified, parsing does not occur.
 
-=back
+=item I<remote_source>
+
+If provided will assume that the source location is on a remote server. Value should be
+the protocol used to connect to the remote location, 'ssh' is the only valid value at
+the moment.
 
 =back
 
@@ -391,6 +395,12 @@ Here's an example of a file:
  target: image_repository
  default_link: 1
  always: 1
+ ---
+ source: remote@endpoint.com:/var/www/image_repository
+ target: image_repository
+ default_link: 1
+ always: 1
+ remote_source: ssh
 
 =back
 
@@ -417,17 +427,19 @@ sub process_copy_paths {
 
     for my $copy (@data) {
         my $link = defined($copy->{default_link}) && $copy->{default_link};
-        my $src = $copy->{source};
-        my $target = $copy->{target};
-        $src = substitute_hash_tokens($src, $conf) if $copy->{parse_source};
-        $target = substitute_hash_tokens($target, $conf) if $copy->{parse_target};
 
+        my $src = $copy->{source};
+        $src = substitute_hash_tokens($src, $conf) if $copy->{parse_source};
         my $src_trail++ if $src =~ m{/$};
-        my $target_trail++ if $target =~ m{/$};
-        $src = File::Spec->catfile( type_path(), $src ) if ! File::Spec->file_name_is_absolute($src);
-        $target = File::Spec->catfile( $conf->{path}, $target );
+        $src = File::Spec->catfile( type_path(), $src ) if ! File::Spec->file_name_is_absolute($src) && ! defined $copy->{remote_source};
         $src .= '/' if $src_trail and $src !~ q{/$};
+
+        my $target = $copy->{target};
+        $target = substitute_hash_tokens($target, $conf) if $copy->{parse_target};
+        my $target_trail++ if $target =~ m{/$};
+        $target = File::Spec->catfile( $conf->{path}, $target );
         $target .= '/' if $target_trail and $target !~ q{/$};
+
         if (!$defaults_only and !( defined($copy->{always}) && $copy->{always} )) {
             my ($decision, $flag);
             while (!defined($decision) or !($decision =~ s/^\s*([yn]?)\s*$/$1/i)) {
@@ -466,8 +478,19 @@ sub process_copy_paths {
             }
             unshift @exclude, vcs_exclude_patterns();
             my $exclude_args = join ' ', map { "--exclude='$_'" } @exclude;
-            do_system(qq{rsync --stats -a --delete $exclude_args $src $target});
-            # system("cp -a $src $target") == 0 or die "Failed to copy: $!\n";
+
+            my $cmd_string = 'rsync';
+            if (defined $copy->{remote_source}) {
+                if ($copy->{remote_source} eq 'ssh') {
+                    $cmd_string .= " -e $copy->{remote_source}";
+                }
+                else {
+                    die "Unrecognized remote source type: $copy->{remote_source}\n";
+                }
+            }
+            $cmd_string .= qq{ --stats -a --delete $exclude_args $src $target};
+
+            do_system($cmd_string);
         }
     }
     return @data;

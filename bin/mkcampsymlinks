@@ -1,0 +1,25 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use List::Util qw/first/;
+
+foreach my $camp (glob "$ENV{HOME}/camp*") {
+    my ($camp_number) = $camp =~ /(\d+)/;
+    my @camp_info     = `camp-info $camp_number`;
+    my $type          = first { s/^camp_type: // } @camp_info;
+    my $comment       = first { s/^comment: // } @camp_info;
+
+    chomp $type;
+    chomp $comment;
+
+    $comment =~ s!/!:!g;
+
+    my $link_name = "$ENV{HOME}/$type: $comment";
+
+    print "$link_name\n";
+    
+    symlink($camp,$link_name);
+};
+

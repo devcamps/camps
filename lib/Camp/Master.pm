@@ -2,6 +2,7 @@ package Camp::Master;
 
 use strict;
 use warnings;
+use Cwd;
 use IO::Handle;
 use File::Path;
 use File::pushd;

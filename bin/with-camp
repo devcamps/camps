@@ -1,15 +1,54 @@
-#!/bin/bash
+#!/usr/local/bin/perl
 
-if test "$1" -ge 0 2>/dev/null
-then
-  CAMP=$1
-  shift
-else
-  CAMP=`camp-info --number --quiet --no-newline`
-fi
+# revised with-camp helper; obsoletes psql_camp and with-camp both.
+# we could alias psql_camp to with-camp psql
 
-export CAMP=$CAMP
-export PERL5LIB=$PERL5LIB:~/camp$CAMP/interchange/custom/lib:~/camp$CAMP/interchange/lib
-export PATH=$PATH:~/camp$CAMP/bin
+# also enables pgdump, etc of camp database without further tool
+# creation/modification.
 
-"$@"
+use strict;
+use warnings;
+use lib '/home/camp/lib';
+use Cwd;
+use Camp::Master;
+
+my $camp;
+
+if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
+    # first command-line argument can be camp number
+    $camp = shift;
+}
+
+unless ($camp) {
+    # if not specified, get current camp # from current working directory
+    my $dir = getcwd();
+    die "current working directory doesn't exist!\n" unless $dir;
+    $dir =~ m{/camp(\d+)} and $camp = $1;
+}
+
+unless (defined($camp)) {
+    die "Please specify a camp #\n";
+}
+
+initialize(
+    camp => $camp,
+);
+
+my $conf = config_hash();
+my $port = $conf->{db_port};
+
+# setup environment
+if ($conf->{db_type} eq 'pg') {
+    $ENV{PGUSER}     ||= $conf->{db_default_user};
+    $ENV{PGDATABASE} ||= $conf->{db_default_database};
+    $ENV{PGPORT}     ||= $port;
+}
+else {
+    # mysql/other-specific variable initialization
+}
+
+$ENV{PERL5LIB} = "$ENV{PERL5LIB}:$ENV{HOME}/camp$camp/interchange/custom/lib:$ENV{HOME}/camp$camp/interchange/lib";
+$ENV{PATH}     = "$ENV{PATH}:$ENV{HOME}/camp$camp/bin";
+$ENV{CAMP}     = $camp;
+
+exec @ARGV;

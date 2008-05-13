@@ -16,7 +16,7 @@ use Getopt::Long;
 
 die "Don't run this as root!\n" if $< == 0;
 
-my (@attribute_list,%opt,@all_fields,@requested_fields);
+my (@attribute_list, %opt, @all_fields, @requested_fields);
 
 # populate initial attributes for Getopt based on lookup table.
 my %queryable_attributes = (
@@ -64,26 +64,21 @@ while (my ($attribute, $type) = each %queryable_attributes) {
 }
 
 my $USAGE=<<EOH;
-Usage: camp-info [options] [ number | path ]
+Usage: camp-info [options] [number]
+
+If the camp number is not specified, it may be inferred from the CAMP
+environment variable or the current working directory.
 
 Options:
-
---comment         Return the comment for the current or specified camp.
-
---set-comment,-m  Set the comment for the current or specified camp.
-
---number          Return the camp number for the current or specified camp.
-
---type            Return the camp type for the current or specific camp.
-
---vcs             Return the vcs in use for the current or specific camp.
-
---quiet,-q        Suppress the display of informational headers.  Useful in scripts.
-
---no-newline,-n   Suppress the display of the newline in the output.  Useful in scripts.
-
---help            This help screen
-
+--comment          Show the comment for the camp.
+--set-comment, -m  Set the comment for the camp.
+--number           Show the camp number for the camp.
+--type             Show the camp type for the camp.
+--vcs              Show the version control system in use for the camp.
+--quiet, -q        Suppress the display of informational headers.
+--no-newline, -n   Suppress the display of the newline in the output.
+--separator, -s    Separate output with a specified string.
+--help, -h         Show this help.
 EOH
 
 GetOptions(
@@ -101,11 +96,11 @@ if ($opt{help}) {
 }
 
 my $display_output_headers = ! $opt{quiet};
-my $camp_number = resolve_camp(shift);
+my $camp_number = resolve_camp_number(shift);
 
-if (!$camp_number) {
+if (!defined $camp_number) {
     exit 1 if $opt{quiet};
-    die "$0: couldn't determine camp; specify in command line or \$ENV{CAMP}\n";
+    die "$0: couldn't determine camp; specify in command line or CAMP environment variable\n";
 }
 
 my $info = Camp::Master::get_camp_info( $camp_number );
@@ -134,23 +129,10 @@ foreach my $attribute (keys %queryable_attributes) {
 my $sep = $opt{separator} || qq{\n};
 
 if (!$set_attribute) {
-    # TODO: this is quite confusing, and should be cleaned up.
-    print((join $sep, map { ($display_output_headers ? "$_: " : '') . $info->{$_} } @requested_fields ) . ($opt{'no-newline'} ? '' : "\n"));
-}
-
-sub resolve_camp {
-    my $camp = shift;
-
-    # explicit param first
-    return $camp if $camp;
-
-    # look at environment
-    return $ENV{CAMP} if $ENV{CAMP};
-    
-    # look at path
-    getcwd() =~ m/camp(\d\d)/;
-    return $1 if $1;
-
-    # just return undef if we can't resolve further
-    return;
+    print join $sep,
+        map {
+            ($display_output_headers ? "$_: " : '')
+            . $info->{$_}
+        } @requested_fields;
+    print "\n" unless $opt{'no-newline'};
 }

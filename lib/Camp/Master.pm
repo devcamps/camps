@@ -1394,19 +1394,30 @@ sub unregister_camp {
 }
 
 sub resolve_camp_number {
-    my $camp = shift;
+    my $param = shift;
+    my $camp;
 
-    # explicit param first
-    return $camp if defined $camp && $camp =~ /\A\d+\z/;
+    # look at explicit parameter
+    $camp = validate_camp_number($param);
+    return $camp if defined $camp;
 
     # look at environment
-    return $ENV{CAMP} if defined $ENV{CAMP} && $ENV{CAMP} =~ /\A\d+\z/;
+    $camp = validate_camp_number($ENV{CAMP});
+    return $camp if defined $camp;
     
     # look at path
-    getcwd() =~ m{/camp(\d+)\b};
-    return $1 if defined $1;
+    getcwd() =~ m{/camp(\d+)\b} and do {
+        $camp = validate_camp_number($1);
+        return $camp if defined $camp;
+    };
 
-    # just return undef if we can't resolve further
+    # return nothing if we can't resolve further
+    return;
+}
+
+sub validate_camp_number {
+    my $number = shift;
+    return $number if defined($number) and $number =~ /\A\d+\z/;
     return;
 }
 

@@ -1634,6 +1634,25 @@ sub vcs_local_refresh {
     return do_system($cmd);
 }
 
+sub vcs_local_revert {
+    my $conf = config_hash();
+
+    # Make file paths relative, since that's what the version control systems expect
+    my @files = map { File::Spec->abs2rel($_, $conf->{path}) } @_;
+
+    my $vcs_type = vcs_type();
+    my %map = (
+        svn => 'svn revert %s',
+        svk => 'svk revert %s',
+        git => 'git checkout %s',
+    );
+    my $cmd = $map{$vcs_type} or die "No local revert command available for VCS type '$vcs_type'.\n";
+
+    my $dir = pushd("$conf->{path}") or die "Couldn't chdir $conf->{path}: $!\n";
+    my $args = join ' ', @files;
+    return do_system(sprintf($cmd, $args));
+}
+
 sub prepare_ic {
     return unless has_ic();
     my $conf = config_hash();
@@ -1645,18 +1664,17 @@ sub prepare_ic {
 
     # Prepare the CGI linker.
     $file = "$conf->{icroot}/bin/compile_link";
-    if (-f $file) {
+    if (-x $file) {
         do_system("$file -s $conf->{icroot}/var/run/socket --source $conf->{icroot}/src");
         if (! -d $conf->{cgidir}) {
             mkdir $conf->{cgidir} or die "error making cgi-bin directory: $!\n";
         }
         do_system("cp -p $conf->{icroot}/src/vlink $conf->{cgidir}/$_")
             for @{$conf->{catalog_linker_filenames}};
-        # revert hardcoded changes to src/ by removing it, then re-fetching from Subversion
-        my $dir = pushd("$conf->{icroot}/src") or die "Couldn't chdir $conf->{icroot}: $!\n";
-        my @files = ('tlink.pl', 'vlink.pl',);
-        unlink(@files) == @files or die "Couldn't unlink one or more files: $!\n";
-        vcs_local_refresh();
+
+        # use the version control system revert hardcoded changes to src/ files
+        my @files = map { File::Spec->catfile($conf->{icroot}, 'src', $_) } qw( tlink.pl vlink.pl );
+        vcs_local_revert(@files);
     }
 
     type_message('prepare_ic');
@@ -2527,7 +2545,7 @@ sub default_camp_type {
     my ($deftype) = dbh()->selectrow_array(<<'EOL');
 SELECT c.camp_type
 FROM camp_types c
-LEFT jOIN camp_types c2
+LEFT JOIN camp_types c2
     ON c2.camp_type <> c.camp_type
 WHERE c2.camp_type IS NULL
 EOL

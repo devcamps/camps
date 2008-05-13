@@ -2103,19 +2103,28 @@ sub _initialize_camp_database {
 
 sub _initialize_camp_database_pg {
     my $conf = shift;
-    
+
+    # PostgreSQL initdb before version 8.0 didn't have the -A or --pwfile options,
+    # so we have to basically reimplement them manually.
+    my $password_pain = (db_version_pg() < 8.0);
+
     my $postgres_pass = $conf->{db_pg_postgres_pass} or die "No password determined for postgres user!\n";
     # Run initdb to make new database cluster.
     my $tmp = File::Temp->new( DIR => camp_user_tmpdir(), UNLINK => 0 );
     $tmp->print( "$postgres_pass\n" );
     $tmp->close or die "Couldn't close $tmp: $!\n";
+
     my @args = (
         "-D $conf->{db_data}",
         '-n',
         '-U', 'postgres',
-        "--pwfile=$tmp",
-        '-A', 'md5',
     );
+    if (! $password_pain) {
+        push @args,
+            '-A', 'md5',
+            "--pwfile=$tmp",
+        ;
+    }
     push @args, "-E $conf->{db_encoding}"
         if $conf->{db_encoding}
     ;
@@ -2125,6 +2134,50 @@ sub _initialize_camp_database_pg {
     my $cmd = 'initdb ' . join(' ', @args);
     print "Preparing database cluster:\n$cmd\n";
     system($cmd) == 0 or die "Error executing initdb!\n";
+
+    if ($password_pain) {
+        # The default pg_hba.conf uses ident authentication, which won't work since
+        # we're user e.g. "bob" trying to connect as "postgres", so switch temporarily
+        # to trust auth.
+        my $pg_hba_file = File::Spec->catfile($conf->{db_data}, 'pg_hba.conf');
+        my $pg_hba_orig = "$pg_hba_file.orig";
+        rename $pg_hba_file, $pg_hba_orig or die "Couldn't rename $pg_hba_file to $pg_hba_orig: $!\n";
+        open my $TRUST, '>', $pg_hba_file or die "Couldn't write $pg_hba_file: $!\n";
+        print {$TRUST} <<'END';
+local all all trust
+END
+        close $TRUST or die "Couldn't close $pg_hba_file: $!\n";
+
+        # We have to start the database to be able to set the superuser's password
+        _render_database_config($conf);
+        db_control('start') or die "Error starting new camp database!\n";
+        my $PSQL = db_connect_as_owner();
+        print {$PSQL} "ALTER USER postgres WITH ENCRYPTED PASSWORD '$postgres_pass';\n";
+        close $PSQL or die "Error piping command to psql: $!\n";
+
+        # Now that the superuser's password is set, we can switch to password authentication
+        # by editing the original pg_hba.conf.
+        my $pg_hba_content = '';
+        open my $IN, '<', $pg_hba_orig or die "Couldn't read $pg_hba_orig: $!\n";
+        while (<$IN>) {
+            # Comment out all active lines
+            $pg_hba_content .= '#' if /\S/ and ! /^\s*#/;
+            $pg_hba_content .= $_;
+        }
+        close $IN or die "Couldn't close $pg_hba_file: $!\n";
+
+        open my $OUT, '>', $pg_hba_file or die "Couldn't write $pg_hba_file: $!\n";
+        print {$OUT} $pg_hba_content;
+        print {$OUT} <<'END';
+local   all         all                                             md5
+host    all         all         127.0.0.1         255.255.255.255   md5
+END
+        close $OUT or die "Couldn't close $pg_hba_file: $!\n";
+
+        # Now stop the database and on next start it should be ready to go
+        db_control('stop') or die "Error stopping new camp database!\n";
+    }
+
     unlink $tmp or die "Error unlinking $tmp: $!\n";
     return 1;
 }
@@ -2154,6 +2207,7 @@ sub _render_database_config {
     open my $CONF, '>>', $conf->{db_conf} or die "Could not append to $conf->{db_conf}: $!\n";
     print $CONF $template;
     close $CONF or die "Couldn't close $conf->{db_conf}: $!\n";
+    $conf->{_did_render_database_config} = 1;
     return 1;
 }
 
@@ -2277,7 +2331,11 @@ sub _import_db_cmd {
 
 sub _import_db_cmd_pg {
     my ($script, $conf) = @_;
-    return "psql -p $conf->{db_port} -U postgres -d postgres -f $script";
+    # Old versions of Postgres didn't create a "postgres" database by default.
+    # But for newer ones, use that instead of template1 so we don't pollute the
+    # template db if something goes wrong in the import.
+    my $dbname = (db_version_pg() < 8.0) ? 'template1' : 'postgres';
+    return "psql -p $conf->{db_port} -U postgres -d $dbname -f $script";
 }
 
 sub _import_db_cmd_mysql {
@@ -2309,7 +2367,8 @@ sub prepare_database {
 
     _initialize_camp_database( $conf );
 
-    _render_database_config( $conf );
+    _render_database_config( $conf )
+        unless $conf->{_did_render_database_config};
 
     # Start new camp database instance
     db_control( 'start' ) or die "Error starting new camp database!\n";
@@ -2501,9 +2560,15 @@ sub _db_control_pg {
         unless defined $conf->{db_data}
         and $conf->{db_data} =~ /\S/
     ;
-    do_system_soft("pg_ctl -D $conf->{db_data} -l $conf->{db_tmpdir}/pgstartup.log -m fast -w $action") == 0
-        and return 1
-    ;
+    my $cmd = "pg_ctl -D $conf->{db_data} -l $conf->{db_tmpdir}/pgstartup.log -m fast";
+    # Work around old pg_ctl's terrible -w implementation, as evidenced by
+    # this comment there: "FIXME:  This is horribly misconceived."
+    my $manual_wait = (db_version_pg() < 8.0);
+    $cmd .= ' -w' if ! $manual_wait;
+    $cmd .= ' ' . $action;
+    my $result = do_system_soft($cmd);
+    sleep 5 if $manual_wait;
+    $result == 0 and return 1;
     return;
 }
 
@@ -2522,6 +2587,23 @@ sub httpd_control {
         and return 1
     ;
     return;
+}
+
+sub db_version_pg {
+    my %arg = @_;
+    # Yes, this naively assumes that the PostgreSQL client libraries are the
+    # same as the server version. That makes it much easier and works for now.
+
+    # Some examples of psql --version output:
+    # psql (PostgreSQL) 7.3.19-RH
+    # psql (PostgreSQL) 8.2.5
+    my $raw = `psql --version 2>/dev/null`;
+    $raw =~ s/\n.*//s;  # keep only the first line
+    return $raw if $arg{raw};
+    my ($full, $numeric, $major_minor) = $raw =~ /\s(((\d+\.\d+)(?:\.\d+)?)\S*)/;
+    return $full if $arg{full};
+    return $numeric if $arg{numeric};
+    return $major_minor;
 }
 
 sub do_system_soft {

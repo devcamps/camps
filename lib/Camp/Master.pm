@@ -355,6 +355,11 @@ tokens (see CAMP CONFIGURATION VARIABLES).  If not specified, parsing does not o
 If provided with a Perly true value, the target path will be parsed for camp configuration
 tokens (see CAMP CONFIGURATION VARIABLES).  If not specified, parsing does not occur.
 
+=item I<allow_errors>
+
+If provided with a Perly true value, rsync errors will be ignored. Otherwise, rsync errors
+are fatal and abort the mkcamp process.
+
 =item I<remote_source>
 
 If provided will assume that the source location is on a remote server. Value should be
@@ -401,6 +406,7 @@ Here's an example of a file:
  target: image_repository
  default_link: 1
  always: 1
+ allow_errors: 1
  remote_source: ssh
 
 =back
@@ -492,7 +498,8 @@ sub process_copy_paths {
             }
             $cmd_string .= qq{ --stats -a --delete $exclude_args $src $target};
 
-            do_system($cmd_string);
+            my $do_system = ($copy->{allow_errors} ? \&do_system_soft : \&do_system);
+            $do_system->($cmd_string);
         }
     }
     return @data;

@@ -26,7 +26,7 @@ GetOptions(
 	)
 );
 
-unless ($opt{number}) {
+unless (defined $opt{number}) {
 	# if not specified, get current camp # from current working directory
 	(getcwd) =~ m{/camp(\d+)} and $opt{number} = $1;
 }

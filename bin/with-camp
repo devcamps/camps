@@ -19,7 +19,7 @@ if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
     $camp = shift;
 }
 
-unless ($camp) {
+unless (defined $camp and $camp =~ /\A\d+\z/) {
     # if not specified, get current camp # from current working directory
     my $dir = getcwd();
     die "current working directory doesn't exist!\n" unless $dir;

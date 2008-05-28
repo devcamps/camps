@@ -47,7 +47,8 @@ else {
     # mysql/other-specific variable initialization
 }
 
-$ENV{PERL5LIB} = "$ENV{PERL5LIB}:$ENV{HOME}/camp$camp/interchange/custom/lib:$ENV{HOME}/camp$camp/interchange/lib";
+$ENV{PERL5LIB} .= ':' if defined $ENV{PERL5LIB} && $ENV{PERL5LIB} ne '';
+$ENV{PERL5LIB} .= "$ENV{HOME}/camp$camp/interchange/custom/lib:$ENV{HOME}/camp$camp/interchange/lib";
 $ENV{PATH}     = "$ENV{PATH}:$ENV{HOME}/camp$camp/bin";
 $ENV{CAMP}     = $camp;
 

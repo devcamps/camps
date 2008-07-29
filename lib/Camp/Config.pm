@@ -673,7 +673,9 @@ sub parse_all_files {
     $invocant->_validate_run_environment;
 
     for my $catalog ($invocant->known_catalogs) {
-        chdir $invocant->catalog_path($catalog);
+        # Set the catalog temporarily (needed for catalog_path(), at least).
+        $invocant->set_catalog($catalog);
+        chdir $invocant->catalog_path();
         push @$scoped_parse_var_flag, $scoped_parse_var_flag->[$#$scoped_parse_var_flag];
         for my $file (@catalog_files) {
             eval {
@@ -688,6 +690,8 @@ sub parse_all_files {
         }
         pop @$scoped_parse_var_flag;
         chdir $cwd;
+        # Unset the catalog that was set above.
+        $invocant->set_catalog();
     }
     return;
 }

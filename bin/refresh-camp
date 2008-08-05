@@ -23,6 +23,7 @@ GetOptions(
 		vcs
 		db
 		files
+		config
 	)
 );
 
@@ -49,6 +50,12 @@ if (!$showpod) {
 		# Note that vcs_refresh implications are somewhat different for SVN versus SVK.
 		vcs_refresh();
 		$operation++;
+	}
+
+	if ($opt{config}) {
+		# Run install_templates to rebuild templated config files and install them
+		install_templates();
+		$operation++;    
 	}
 
 	if ($opt{db}) {
@@ -102,6 +109,10 @@ This help message.
 
 The number of the camp to refresh; if not specified, attempts to determine the camp
 number from the current working directory.
+
+=item I<--config>
+
+Rebuild the templated configuration files of the specified camp.
 
 =item I<--db>
 

@@ -6,6 +6,8 @@ use lib '/home/camp/lib';
 use Camp::Master qw(camp_list);
 
 my $title = 'Your camps here';
+my $camp_type = 'sample';
+
 
 print "Content-type: text/html\r\n\r\n";
 
@@ -50,12 +52,12 @@ developer responsible to start it for you.
 
 END
 
-for my $row (camp_list( type => 'endpoint' )) {
+for my $row (camp_list( type => $camp_type )) {
     print <<END;
 <tr>
     <td>camp$row->{camp_number}</td>
     <td>
-        <a href="http://$row->{hostname}:$row->{http_port}/">site</a> |
+        <a href="http://$row->{hostname}:$row->{http_port}/">$camp_type</a>
     </td>
     <td>$row->{create_date_display}</td>
     <td><a href="mailto:$row->{email}">$row->{name}</a></td>

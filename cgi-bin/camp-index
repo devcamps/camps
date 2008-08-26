@@ -1,0 +1,73 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use lib '/home/camp/lib';
+use Camp::Master qw(camp_list);
+
+my $title = 'Your camps here';
+
+print "Content-type: text/html\r\n\r\n";
+
+
+print <<END;
+<html>
+<head>
+    <title>$title</title>
+    <link href="/camp.css" rel="stylesheet" type="text/css" />
+</head>
+<body style="margin: 5%">
+
+<h1>$title</h1>
+END
+
+print <<END;
+<p>
+Please note that sometimes a given camp's server is not running.
+If that's the case for the camp you're interested in, please ask the
+developer responsible to start it for you.
+</p>
+
+<table border="1" cellspacing="1" cellpadding="3">
+
+<tr>
+    <th>Name</th>
+    <th>Links</th>
+    <th>Created</th>
+    <th>Developer</th>
+    <th>Comment</th>
+</tr>
+
+<tr bgcolor="white">
+    <td>live</td>
+    <td>
+        <a href="http://www.yourcamphere.com/">site</a> |
+    </td>
+    <td>(permanent)</td>
+    <td>(everyone)</td>
+    <td>The real production site</td>
+</tr>
+
+END
+
+for my $row (camp_list( type => 'endpoint' )) {
+    print <<END;
+<tr>
+    <td>camp$row->{camp_number}</td>
+    <td>
+        <a href="http://$row->{hostname}:$row->{http_port}/">site</a> |
+    </td>
+    <td>$row->{create_date_display}</td>
+    <td><a href="mailto:$row->{email}">$row->{name}</a></td>
+    <td>$row->{comment}</td>
+</tr>
+END
+}
+
+print <<'END';
+
+</table>
+
+</body>
+</html>
+END

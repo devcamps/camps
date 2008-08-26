@@ -1,0 +1,118 @@
+#!/usr/local/bin/perl
+
+use strict;
+use warnings;
+no warnings 'uninitialized';
+use Cwd qw(getcwd abs_path);
+use DBI ();
+use File::Find qw(find);
+use Fcntl qw(:mode);
+
+our $camp_home = '/home/camp';
+
+my %conf;
+
+
+#
+# Verify user information and get home directory
+#
+
+$conf{user} ||= getpwuid($<);
+my $uid;
+($uid, $conf{root}) = (getpwnam($conf{user}))[2,7];
+die "invalid user name\n" if $uid == 0;
+die "missing home directory!\n" if !$conf{root};
+die "invalid home directory!\n" if $conf{root} =~ /\.\./ or $conf{root} eq '/';
+
+
+my $camp;
+
+if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
+	# first command-line argument can be camp number
+	$camp = shift;
+}
+
+unless ($camp) {
+	# if not specified, get current camp # from current working directory
+	my $dir = getcwd();
+	die "current working directory doesn't exist!\n" unless $dir;
+	$dir =~ m{/camp(\d+)} and $camp = $1;
+}
+
+unless (defined($camp)) {
+	die "Please specify a camp #\n";
+}
+
+
+#
+# Verify the camp exists and is owned by this user
+#
+
+#print "Connecting to camp database\n";
+
+our $dbh_master = DBI->connect(
+	"dbi:Pg:dbname=camp",
+	'camp',
+	'CHANGEME',
+	{ RaiseError => 1, AutoCommit => 1 }
+);
+
+my $stha = $dbh_master->prepare("SELECT username, name, email FROM camp_users WHERE username = ?");
+$stha->execute($conf{user});
+my $row = $stha->fetchrow_hashref;
+die "user '$conf{user}' is unknown; aborting\n"
+	unless $row->{username};
+die "user '$row->{username}' doesn't own camp$camp\n"
+	unless $conf{user} eq $row->{username};
+
+
+#
+# Flesh out derived configuration
+#
+
+$conf{name} = "camp$camp";
+$conf{path} = $conf{root} . '/' . $conf{name};
+
+chdir $conf{path} or die "Couldn't chdir $conf{path}: $!\n";
+
+
+#warn "Looking for lint in $conf{name}\n";
+
+
+my $camp_abs_path = abs_path($conf{path});
+
+my $world_readable_re = qr{\A./htdocs(?:/|\z)};
+my $absolute_symlink_exception_re = qr{\A./httpd/modules\z};
+
+
+sub file_lint {
+    #warn "Checking $File::Find::name\n";
+    my $mode = (lstat)[2];
+    my $abs_path = abs_path($_);
+    if (-l _) {
+        my $link_to = readlink;
+        if ($link_to =~ m:\A/:) {
+            print "Absolute symbolic link found: $File::Find::name -> $link_to\n"
+                if $File::Find::name !~ /$absolute_symlink_exception_re/;
+        }
+        elsif (m:\A[^.].*\.\.:) {
+            print "Symbolic link found with non-initial ..: $File::Find::name -> $link_to\n";
+        }
+        else {
+            my $link_abs_path = abs_path($link_to);
+            print "Symbolic link points outside of root: $File::Find::name -> $link_to\n"
+                if $link_abs_path !~ /\A$camp_abs_path/o;
+        }
+    }
+    elsif ($File::Find::name =~ /$world_readable_re/) {
+        if (-d _) {
+            print "Directory that should be world-executable isn't: $File::Find::name\n"
+                unless $mode & S_IXOTH;
+        }
+        print "File that should be world-readable isn't: $File::Find::name\n"
+            unless $mode & S_IROTH;
+    }
+    return;
+}
+
+find (\&file_lint, '.');

@@ -2237,7 +2237,7 @@ sub db_connect {
 sub _db_connect_pg {
     my %opt = @_;
     my $conf = config_hash();
-    my $cmd = "psql -p $conf->{db_port} -U $opt{user} -d $opt{database}";
+    my $cmd = "psql -X -p $conf->{db_port} -U $opt{user} -d $opt{database}";
     print "Connecting to Postgres: $cmd\n";
     open my $PSQL, "| $cmd"
         or die "Error opening pipe to psql: $!\n"
@@ -2342,7 +2342,7 @@ sub _import_db_cmd_pg {
     # But for newer ones, use that instead of template1 so we don't pollute the
     # template db if something goes wrong in the import.
     my $dbname = (db_version_pg() < 8.0) ? 'template1' : 'postgres';
-    return "psql -p $conf->{db_port} -U postgres -d $dbname -f $script";
+    return "psql -X -p $conf->{db_port} -U postgres -d $dbname -f $script";
 }
 
 sub _import_db_cmd_mysql {

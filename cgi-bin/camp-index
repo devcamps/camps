@@ -7,6 +7,7 @@ use Camp::Master qw(camp_list);
 
 my $title = 'Your camps here';
 my $camp_type = 'sample';
+my $production_url = 'http://your.url.here/';
 
 
 print "Content-type: text/html\r\n\r\n";
@@ -43,7 +44,7 @@ developer responsible to start it for you.
 <tr bgcolor="white">
     <td>live</td>
     <td>
-        <a href="http://www.yourcamphere.com/">site</a> |
+        <a href="$production_url">site</a> |
     </td>
     <td>(permanent)</td>
     <td>(everyone)</td>

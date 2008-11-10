@@ -178,10 +178,10 @@ sub initialize {
         $invocant->inspect_environment;
         $invocant->parse_all_files;
 
-	$invocant->set_catalog($invocant->_default_catalog())
-	    unless $invocant->catalog();
+    $invocant->set_catalog($invocant->_default_catalog())
+        unless $invocant->catalog();
     }
-	
+    
     return;
 }
 
@@ -259,11 +259,11 @@ sub _set_up_adhoc_layout {
 sub _validate_adhoc_user {
     my $invocant = shift;
     my $obj = getpwuid($>);
-	die sprintf(
-		"Invalid user; must run as interch, not %s\n",
-		$obj->name
-	) if $obj->name ne 'interch';
-	
+    die sprintf(
+        "Invalid user; must run as interch, not %s\n",
+        $obj->name
+    ) if $obj->name ne 'interch';
+    
     $invocant->_setting_set('user', $obj);
     return $invocant->_setting_get('user');
 }
@@ -306,8 +306,8 @@ sub import {
 
 sub catalog {
     my $table = $main::{'Vend::'};
-	return unless defined $table->{Cfg};
-	return ${$table->{Cfg}}->{CatalogName};
+    return unless defined $table->{Cfg};
+    return ${$table->{Cfg}}->{CatalogName};
 }
 
 sub set_catalog {
@@ -347,14 +347,18 @@ sub dbh {
     $invocant->set_catalog($catalog) if $catalog;
     $catalog = $invocant->catalog();
 
-    $options = { AutoCommit => 1,
-		 RaiseError => 1,} unless ref $options eq 'HASH';
+    $options =
+        {
+            AutoCommit => 1,
+            RaiseError => 1,
+        }
+        unless ref $options eq 'HASH';
 
     my $dbh = DBI->connect($invocant->db_dsn($catalog),
-			   $invocant->db_user($catalog),
-			   $invocant->db_password($catalog),
-			   $options)
-	or die "Unable to obtain database handle";
+               $invocant->db_user($catalog),
+               $invocant->db_password($catalog),
+               $options)
+    or die "Unable to obtain database handle";
 
     return $dbh;
 }
@@ -701,14 +705,12 @@ sub env_variables {
     my @vars = @_;
     my @out;
     for (@vars) {
-	my $var = $invocant->smart_variable($_) || '';
-	push @out, "export $_=" . $var;
+        my $var = $invocant->smart_variable($_) || '';
+        push @out, "export $_=" . $var;
     }
     push @out, 'export CAMP_BASE_PATH=' . $invocant->base_path();
     
     my $out = join "\n", @out;
-#    $out .= "\n";
-#    print STDERR $out;
     return $out;
 }
 

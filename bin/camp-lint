@@ -28,19 +28,19 @@ die "invalid home directory!\n" if $conf{root} =~ /\.\./ or $conf{root} eq '/';
 my $camp;
 
 if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
-	# first command-line argument can be camp number
-	$camp = shift;
+    # first command-line argument can be camp number
+    $camp = shift;
 }
 
 unless ($camp) {
-	# if not specified, get current camp # from current working directory
-	my $dir = getcwd();
-	die "current working directory doesn't exist!\n" unless $dir;
-	$dir =~ m{/camp(\d+)} and $camp = $1;
+    # if not specified, get current camp # from current working directory
+    my $dir = getcwd();
+    die "current working directory doesn't exist!\n" unless $dir;
+    $dir =~ m{/camp(\d+)} and $camp = $1;
 }
 
 unless (defined($camp)) {
-	die "Please specify a camp #\n";
+    die "Please specify a camp #\n";
 }
 
 
@@ -51,19 +51,19 @@ unless (defined($camp)) {
 #print "Connecting to camp database\n";
 
 our $dbh_master = DBI->connect(
-	"dbi:Pg:dbname=camp",
-	'camp',
-	'CHANGEME',
-	{ RaiseError => 1, AutoCommit => 1 }
+    "dbi:Pg:dbname=camp",
+    'camp',
+    'CHANGEME',
+    { RaiseError => 1, AutoCommit => 1 }
 );
 
 my $stha = $dbh_master->prepare("SELECT username, name, email FROM camp_users WHERE username = ?");
 $stha->execute($conf{user});
 my $row = $stha->fetchrow_hashref;
 die "user '$conf{user}' is unknown; aborting\n"
-	unless $row->{username};
+    unless $row->{username};
 die "user '$row->{username}' doesn't own camp$camp\n"
-	unless $conf{user} eq $row->{username};
+    unless $conf{user} eq $row->{username};
 
 
 #

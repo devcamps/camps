@@ -10,14 +10,14 @@ use Getopt::Long;
 
 my %conf;
 GetOptions(
-	\%conf,
-	qw(
-		number=i
-	)
+    \%conf,
+    qw(
+        number=i
+    )
 );
 
 unless (defined($conf{number}) and $conf{number} =~ /^\d+$/) {
-	die "please specify number of camp to delete with --number\n";
+    die "please specify number of camp to delete with --number\n";
 }
 
 initialize(camp => $conf{number});

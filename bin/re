@@ -16,29 +16,29 @@ die "Don't run this as root!\n" if $> == 0;
 
 my %conf;
 GetOptions(
-	\%conf,
-	qw(
-		stop
-		start
-		restart
-		all
-	)
+    \%conf,
+    qw(
+        stop
+        start
+        restart
+        all
+    )
 );
 
 my $camp_number;
 
 if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
-	# first command-line argument can be camp number
-	$camp_number = shift;
+    # first command-line argument can be camp number
+    $camp_number = shift;
 }
 
 unless ($camp_number) {
-	# if not specified, get current camp # from current working directory
-	(getcwd) =~ m{/camp(\d+)} and $camp_number = $1;
+    # if not specified, get current camp # from current working directory
+    (getcwd) =~ m{/camp(\d+)} and $camp_number = $1;
 }
 
 unless (defined($camp_number)) {
-	die <<'EOF';
+    die <<'EOF';
 camp restart script
 
 Usage: re [--stop|start|restart] [--all] [#]
@@ -66,7 +66,7 @@ $conf{restart} = 1 unless $conf{stop} or $conf{start};
 
 my $action;
 for (qw( restart stop start )) {
-	$action = $_, last if $conf{$_};
+    $action = $_, last if $conf{$_};
 }
 
 if ($conf{all}) {

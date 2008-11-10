@@ -16,73 +16,73 @@ die "Don't run this as root!\n" if $< == 0;
 
 my (%opt, $errmsg, $operation, $showpod);
 GetOptions(
-	\%opt,
-	qw(
-		number=i
-		usage
-		vcs
-		db
-		files
-		config
-	)
+    \%opt,
+    qw(
+        number=i
+        usage
+        vcs
+        db
+        files
+        config
+    )
 );
 
 unless (defined $opt{number}) {
-	# if not specified, get current camp # from current working directory
-	(getcwd) =~ m{/camp(\d+)} and $opt{number} = $1;
+    # if not specified, get current camp # from current working directory
+    (getcwd) =~ m{/camp(\d+)} and $opt{number} = $1;
 }
 
 if ($opt{usage}) {
-	$showpod++;
+    $showpod++;
 }
 elsif (! defined $opt{number}) {
-	$errmsg = 'Please specify a camp number';
-	$showpod++;
+    $errmsg = 'Please specify a camp number';
+    $showpod++;
 }
 
 if (!$showpod) {
-	initialize( camp => $opt{number} );
-	die "You are not the owner of camp $opt{number}!\n"
-		if $< != camp_user_obj()->uid()
-	;
+    initialize( camp => $opt{number} );
+    die "You are not the owner of camp $opt{number}!\n"
+        if $< != camp_user_obj()->uid()
+    ;
 
-	if ($opt{vcs}) {
-		# Note that vcs_refresh implications are somewhat different for SVN versus SVK.
-		vcs_refresh();
-		$operation++;
-	}
+    if ($opt{vcs}) {
+        # Note that vcs_refresh implications are somewhat different for SVN versus SVK.
+        vcs_refresh();
+        $operation++;
+    }
 
-	if ($opt{config}) {
-		# Run install_templates to rebuild templated config files and install them
-		install_templates();
-		$operation++;    
-	}
+    if ($opt{config}) {
+        # Run install_templates to rebuild templated config files and install them
+        install_templates();
+        $operation++;    
+    }
 
-	if ($opt{db}) {
-		# Run prepare_database with the force flag so it'll overwrite the existing one.
-		prepare_database(1);
-		$operation++;
-	}
+    if ($opt{db}) {
+        # Run prepare_database with the force flag so it'll overwrite the existing one.
+        prepare_database(1);
+        $operation++;
+    }
 
-	if ($opt{files}) {
-		# process_copy_paths() uses rsync for file copying, so it functions like an update
-		process_copy_paths();
-		$operation++;
-	}
+    if ($opt{files}) {
+        # process_copy_paths() uses rsync for file copying, so it functions like an update
+        process_copy_paths();
+        $operation++;
+    }
 
-	unless ($operation) {
-		$errmsg = 'Please specify the type(s) of refresh to perform.';
-		$showpod++;
-	}
+    unless ($operation) {
+        $errmsg = 'Please specify the type(s) of refresh to perform.';
+        $showpod++;
+    }
 }
 
 if ($showpod) {
-	my %podopt = (
-		-exitval => ($errmsg ? 255 : 0),
-		-verbose => 2,
-	);
-	$podopt{'-msg'} = $errmsg if $errmsg;
-	pod2usage(%podopt);
+    my %podopt = (
+        -exitval => ($errmsg ? 255 : 0),
+        -verbose => 2,
+    );
+    $podopt{'-msg'} = $errmsg if $errmsg;
+    pod2usage(%podopt);
 }
 
 exit;

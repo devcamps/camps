@@ -22,26 +22,33 @@ GetOptions(
         start
         restart
         all
+        user
     )
 );
 
-my $camp_number;
+my @camp_numbers;
+my $all_user_camps = $conf{user};
 
-if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
-    # first command-line argument can be camp number
-    $camp_number = shift;
+@camp_numbers = grep { m/\A\d+\z/ } @ARGV;
+
+if ($all_user_camps) {
+    @camp_numbers =
+        map { $_->{camp_number} }
+        grep { $_->{username} eq $ENV{USER} }
+        Camp::Master::camp_list( all => 1)
+    ;
 }
 
-unless ($camp_number) {
+unless (@camp_numbers) {
     # if not specified, get current camp # from current working directory
-    (getcwd) =~ m{/camp(\d+)} and $camp_number = $1;
+    (getcwd) =~ m{/camp(\d+)} and @camp_numbers = $1;
 }
 
-unless (defined($camp_number)) {
+unless (@camp_numbers) {
     die <<'EOF';
 camp restart script
 
-Usage: re [--stop|start|restart] [--all] [#]
+Usage: re [--stop|start|restart] [--all] [<number>+ | --user ]
 
 Default action is --restart.
 
@@ -50,43 +57,49 @@ Add the --all option to also act on PostgreSQL and Apache.
 
 Camp number is inferred from a camp's current working directory if available.
 
+If the --user flag is passed, all of the user's camps are affected.
+
 Example: re 44
 EOF
 }
 
-initialize(
-    camp => $camp_number,
-);
 
-die "You are not the owner of camp $camp_number!\n"
-    if $< != camp_user_obj()->uid()
-;
-
-$conf{restart} = 1 unless $conf{stop} or $conf{start};
-
-my $action;
-for (qw( restart stop start )) {
-    $action = $_, last if $conf{$_};
-}
-
-if ($conf{all}) {
-    server_control(
-        action  => $action,
-        service => 'all',
+for my $camp_number (@camp_numbers) {
+    initialize(
+        force => 1,
+        camp => $camp_number,
     );
-}
-else {
-    if (has_rails()) {
+
+    die "You are not the owner of camp $camp_number!\n"
+        if $< != camp_user_obj()->uid()
+    ;
+
+    $conf{restart} = 1 unless $conf{stop} or $conf{start};
+
+    my $action;
+    for (qw( restart stop start )) {
+        $action = $_, last if $conf{$_};
+    }
+
+    if ($conf{all}) {
         server_control(
             action  => $action,
-            service => 'rails',
+            service => 'all',
         );
     }
-    if (has_ic()) {
-        server_control(
-            action  => $action,
-            service => 'ic',
-        );
+    else {
+        if (has_rails()) {
+            server_control(
+                action  => $action,
+                service => 'rails',
+            );
+        }
+        if (has_ic()) {
+            server_control(
+                action  => $action,
+                service => 'ic',
+            );
+        }
     }
 }
 

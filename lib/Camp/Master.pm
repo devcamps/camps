@@ -2676,11 +2676,19 @@ sub camp_list {
     die "You must specify a camp type!\n"
         unless $opt{type}
         or $opt{all}
+        or $opt{user}
     ;
     my (@args, $where);
+
+    $where = '';
+
     if ($opt{type}) {
-        $where = "\n\tAND c.camp_type = ?";
-        @args = ($opt{type});
+        $where .= "\n\tAND c.camp_type = ?";
+        push @args, $opt{type};
+    }
+    if ($opt{user}) {
+        $where .= "\n\tAND c.username = ?";
+        push @args, $opt{user};
     }
 
     my $sth = dbh()->prepare( _camp_list_sql($where) );

@@ -14,6 +14,8 @@ use DBI;
 use Exporter;
 use base qw(Exporter);
 
+our $VERSION = '3.00';
+
 @Camp::Master::EXPORT = qw(
     base_path
     base_tmpdir

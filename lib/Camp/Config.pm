@@ -1,4 +1,5 @@
 package Camp::Config;
+
 use strict;
 use warnings;
 use Cwd ();
@@ -7,6 +8,8 @@ use User::pwent;
 use DBI;
 use Safe;
 use Scalar::Util qw/blessed/;
+
+our $VERSION = '3.00';
 
 my %package_singletons;
 my @setting_names = qw(

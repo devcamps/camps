@@ -1147,7 +1147,7 @@ Like the B<import()> sub of most any exporter, this isn't intended to be used
 directly, but as part of a I<use> call.  The I<%options> available are subject
 to change:
 
-=Item B<dbh( $catalog, $options )>
+=item B<dbh( $catalog, $options )>
 
 Attempts to get you a database handle for the current catalog.  If you pass
 in the optional I<$catalog> variable, it will attempt to use that.  If you do

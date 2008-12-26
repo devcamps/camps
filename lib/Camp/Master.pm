@@ -411,6 +411,8 @@ Here's an example of a file:
 
 =back
 
+=back
+
 =cut
 
 sub process_copy_paths {

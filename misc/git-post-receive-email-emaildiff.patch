@@ -1,0 +1,57 @@
+commit 942f4955994c0a9e57ff66c308bc15f503499315
+Author: Jon Jensen <jon@endpoint.com>
+Date:   Mon Aug 11 15:17:24 2008 -0600
+
+    Add option hooks.emaildiff to include full diff in post-receive-email.
+    
+    (I forgot to sign off the first time.)
+    
+    I've always found that a very important part of receiving email
+    notification of commits is being able to read the diff inline,
+    easily, where I can reply and quote the diff and make comments.
+    It's similar to the reason patches sent to the Git mailing list
+    need to be inline, not attachments.
+    
+    Since post-receive-email didn't have that option, I added it as a
+    boolean config variable, hooks.emaildiff.
+    
+    Signed-off-by: Jon Jensen <jon@endpoint.com>
+
+diff --git a/contrib/hooks/post-receive-email b/contrib/hooks/post-receive-email
+index 4136895..07351cc 100644
+--- a/contrib/hooks/post-receive-email
++++ b/contrib/hooks/post-receive-email
+@@ -38,6 +38,9 @@
+ # hooks.emailprefix
+ #   All emails have their subjects prefixed with this prefix, or "[SCM]"
+ #   if emailprefix is unset, to aid filtering
++# hooks.emaildiff
++#   If set, then a full diff of changes is sent in addition to the default
++#   summary output.
+ #
+ # Notes
+ # -----
+@@ -410,8 +413,13 @@ generate_update_branch_email()
+ 	# - including the undoing of previous revisions in the case of
+ 	# non-fast forward updates.
+ 	echo ""
+-	echo "Summary of changes:"
+-	git diff-tree --stat --summary --find-copies-harder $oldrev..$newrev
++	if [ -n "$emaildiff" ]; then
++		echo "Summary of changes and diff:"
++		git diff-tree --find-copies-harder --stat --summary -p $oldrev..$newrev
++	else
++		echo "Summary of changes:"
++		git diff-tree --find-copies-harder --stat --summary $oldrev..$newrev
++	fi
+ }
+ 
+ #
+@@ -627,6 +635,7 @@ recipients=$(git config hooks.mailinglist)
+ announcerecipients=$(git config hooks.announcelist)
+ envelopesender=$(git config hooks.envelopesender)
+ emailprefix=$(git config hooks.emailprefix || echo '[SCM] ')
++emaildiff=$(git config hooks.emaildiff)
+ 
+ # --- Main loop
+ # Allow dual mode: run from the command line just like the update hook, or

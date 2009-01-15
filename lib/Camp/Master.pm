@@ -14,6 +14,8 @@ use DBI;
 use Exporter;
 use base qw(Exporter);
 
+our $VERSION = '3.00';
+
 @Camp::Master::EXPORT = qw(
     base_path
     base_tmpdir
@@ -408,6 +410,8 @@ Here's an example of a file:
  always: 1
  allow_errors: 1
  remote_source: ssh
+
+=back
 
 =back
 

@@ -24,8 +24,7 @@ sub _initialized {
     my $invocant = shift;
     return @_
         ? $invocant->_resolve_invocant->{_initialized}++
-        : $invocant->_resolve_invocant->{_initialized}
-    ;
+        : $invocant->_resolve_invocant->{_initialized};
 }
 
 sub _resolve_invocant {
@@ -76,11 +75,9 @@ sub _catalog_variable_store {
 sub _catalog_variables {
     my ($invocant, $catalog) = @_;
     die "Please specify a catalog when referencing catalog variables.\n"
-        unless defined $catalog
-    ;
+        unless defined $catalog;
     die "Cannot reference catalog variables for unknown catalog '$catalog'.\n"
-        unless $invocant->known_catalogs($catalog)
-    ;
+        unless $invocant->known_catalogs($catalog);
     return $invocant->_catalog_variable_store->{$catalog} ||= {};
 }
 
@@ -93,6 +90,7 @@ sub _default_catalog {
     my $invocant = shift;
     my @catalogs = $invocant->known_catalogs();
     return $catalogs[0] if scalar @catalogs == 1;
+    return;
 }
 
 sub _scoped_parse_flag {
@@ -123,7 +121,7 @@ for my $setting (@setting_names) {
     my $sub = sub {
         my $invocant = shift;
         $invocant->initialize;
-        return $invocant->_setting_get( $setting );
+        return $invocant->_setting_get($setting);
     };
     no strict 'refs';
     *$name = $sub;
@@ -169,9 +167,8 @@ sub _validate_run_environment {
         my $sub = $invocant->can($token);
         $i++ if $invocant->$sub();
     }
-    die "Invalid run environment.  Please fix RUN_ENVIRONMENT in your IC configuration.\n"
-        unless defined($i) and $i == 1
-    ;
+    die "Invalid run environment. Please fix RUN_ENVIRONMENT in your Interchange configuration.\n"
+        unless defined($i) and $i == 1;
     return 1;
 }
 
@@ -181,10 +178,10 @@ sub initialize {
         $invocant->inspect_environment;
         $invocant->parse_all_files;
 
-    $invocant->set_catalog($invocant->_default_catalog())
-        unless $invocant->catalog();
+        $invocant->set_catalog($invocant->_default_catalog())
+            unless $invocant->catalog();
     }
-    
+
     return;
 }
 
@@ -201,9 +198,8 @@ sub inspect_environment {
         $invocant->_set_up_adhoc_layout;
     }
 
-    die 'Cannot interpret operating environment; did you run "chcamp"?'
+    die qq{Cannot interpret operating environment; did you run "chcamp"?\n}
         unless defined $invocant->user;
-    ;
     return;
 }
 
@@ -213,7 +209,7 @@ sub inspect_environment {
         my $invocant = shift;
         $invocant->_setting_set('camp_layout');
         if (!$used_master++) {
-            eval "use Camp::Master ()";
+            eval 'use Camp::Master ()';
         }
         # Return if no camp module exists.
         return unless defined( *Camp::Master::initialize{CODE} );
@@ -236,7 +232,7 @@ sub _set_up_camp_layout {
     # Just use the camp system to get the relevant settings.
     Camp::Master::initialize( camp => $invocant->camp_number );
     my $camp_config = Camp::Master::config_hash();
-    
+
     $invocant->_setting_set('base_path', $camp_config->{path} );
     $invocant->_setting_set('ic_path', $camp_config->{icroot} );
     $invocant->_validate_camp_user( Camp::Master::camp_user_obj() );
@@ -246,8 +242,7 @@ sub _set_up_camp_layout {
 sub _validate_camp_user {
     my ($invocant, $user_obj) = @_;
     $invocant->_setting_set('user', $user_obj )
-        if $> == $user_obj->uid
-    ;
+        if $> == $user_obj->uid;
     return $invocant->_setting_get('user');
 }
 
@@ -266,7 +261,7 @@ sub _validate_adhoc_user {
         "Invalid user; must run as interch, not %s\n",
         $obj->name
     ) if $obj->name ne 'interch';
-    
+
     $invocant->_setting_set('user', $obj);
     return $invocant->_setting_get('user');
 }
@@ -287,7 +282,7 @@ sub include_paths {
         unless $path;
 
     for ((qw(lib custom/lib))) {
-        my $lib = File::Spec->catfile( $path, $_, );
+        my $lib = File::Spec->catfile($path, $_);
         eval 'use lib $lib;';
     }
     return $path;
@@ -298,8 +293,7 @@ sub import {
     my %opt = @_;
 
     $invocant->initialize
-        if !$opt{no_init}
-    ;
+        if !$opt{no_init};
 
     if ($opt{use_libs}) {
         $invocant->include_paths;
@@ -317,8 +311,7 @@ sub set_catalog {
     my ($invocant, $catalog) = @_;
     if (defined $catalog) {
         die "Cannot switch to catalog '$catalog'; it is not a known catalog.\n"
-            unless $invocant->known_catalogs($catalog)
-        ;
+            unless $invocant->known_catalogs($catalog);
         $Vend::Cfg->{CatalogName} = $catalog;
     }
     else {
@@ -332,15 +325,15 @@ sub variable {
     my $invocant = shift;
     my $catalog = shift;
     my $all = wantarray && !@_;
-    my $var = shift if !$all;
+    my $var;
+    $var = shift if !$all;
     die "Catalog '$catalog' is not registered.\n"
         if defined($catalog)
-        and !$invocant->known_catalogs($catalog)
-    ;
+            and !$invocant->known_catalogs($catalog);
     my $source = defined $catalog ? $invocant->_catalog_variables($catalog) : $invocant->_server_variables;
-    die 'Cannot find variables repository!' unless defined $source;
+    die "Cannot find variables repository!\n" unless defined $source;
     return %$source if $all;
-    die 'No variable specified for retrieval!' if ! defined $var;
+    die "No variable specified for retrieval!\n" if ! defined $var;
     return $source->{$var};
 }
 
@@ -357,11 +350,12 @@ sub dbh {
         }
         unless ref $options eq 'HASH';
 
-    my $dbh = DBI->connect($invocant->db_dsn($catalog),
-               $invocant->db_user($catalog),
-               $invocant->db_password($catalog),
-               $options)
-    or die "Unable to obtain database handle";
+    my $dbh = DBI->connect(
+            $invocant->db_dsn($catalog),
+            $invocant->db_user($catalog),
+            $invocant->db_password($catalog),
+            $options
+        ) or die "Unable to obtain database handle\n";
 
     return $dbh;
 }
@@ -384,10 +378,9 @@ sub db_password {
 sub _variable_set {
     my ($invocant, $catalog, $variable, $value) = @_;
 
-    die "Catalog '$catalog' is unknown; please register it"
+    die "Catalog '$catalog' is unknown; please register it\n"
         if defined $catalog
-        and ! $invocant->known_catalogs( $catalog )
-    ;
+            and ! $invocant->known_catalogs($catalog);
 
     my $target = defined($catalog) ? $invocant->_catalog_variables($catalog) : $invocant->_server_variables;
 
@@ -398,13 +391,12 @@ sub _substitute_variables {
     my ($invocant, $catalog, $value) = @_;
     die "Catalog '$catalog' is unknown; please register it\n"
         if defined $catalog
-        and ! $invocant->known_catalogs( $catalog )
-    ;
+            and ! $invocant->known_catalogs($catalog);
 
     my $scoped_parse_var_flag = $invocant->_scoped_parse_flag;
 
-    return $value if !(defined($value) and $scoped_parse_var_flag->[$#$scoped_parse_var_flag]);
-    
+    return $value if !(defined($value) and $scoped_parse_var_flag->[-1]);
+
     my ($tokens, $cat_var, $server_var);
     if (defined $catalog) {
         $cat_var = $invocant->_catalog_variables($catalog);
@@ -446,11 +438,10 @@ sub _substitute_variables {
 
 sub _parse_file {
     my ($invocant, $catalog, $file) = @_;
-    
+
     die "Catalog '$catalog' is unknown; please register it"
         if defined $catalog
-        and ! $invocant->known_catalogs( $catalog )
-    ;
+            and ! $invocant->known_catalogs($catalog);
 
     my $scoped_parse_var_flag = $invocant->_scoped_parse_flag;
 
@@ -472,7 +463,7 @@ sub _parse_file {
         }
         elsif (/^\s*#if(n?)def\s*(.*)/) {
             die sprintf("#ifdefs cannot overlap at line %d of %s!\n", $., $file) if defined $ifdef;
-            $ifdef = $invocant->_ifdef( $catalog, $2, $1 );
+            $ifdef = $invocant->_ifdef($catalog, $2, $1);
             next;
         }
         elsif (/^s*#endif\s*$/) {
@@ -495,13 +486,13 @@ sub _parse_file {
                 next;
             }
         }
-        
+
         if (
             !defined($catalog)
             and $key eq 'catalog'
             and $val =~ /^(\w+)\s+(\S+)/
         ) {
-            $invocant->register_catalog( $1, $2 );
+            $invocant->register_catalog($1, $2);
         }
         elsif (
             $key eq 'parsevariables'
@@ -515,17 +506,14 @@ sub _parse_file {
             else {
                 $setting = $val;
                 die "Invalid value for ParseVariables ('$val'); use Yes/No values.\n"
-                    unless $setting =~ /^\s*(?:y(?:es)?|no?)\s*$/i
-                ;
+                    unless $setting =~ /^\s*(?:y(?:es)?|no?)\s*$/i;
             }
             chomp $setting;
             die "ParseVariables directive only applies to catalog-level configuration files!\n"
-                if ! defined $catalog
-            ;
-            push @$scoped_parse_var_flag, $scoped_parse_var_flag->[$#$scoped_parse_var_flag]
-                if $scoped
-            ;
-            $scoped_parse_var_flag->[$#$scoped_parse_var_flag] = ($setting =~ /y/i);
+                if ! defined $catalog;
+            push @$scoped_parse_var_flag, $scoped_parse_var_flag->[-1]
+                if $scoped;
+            $scoped_parse_var_flag->[-1] = ($setting =~ /y/i);
         }
         elsif ($key =~ /^\s*<\/ParseVariables>\s*$/i) {
             pop @$scoped_parse_var_flag if $#$scoped_parse_var_flag > $entry_scope;
@@ -536,24 +524,24 @@ sub _parse_file {
         ) {
             my $variable = $1;
             $val =~ s/\s+$// if defined $val;
-            $val = $invocant->_substitute_variables( $catalog, $val );
-            $invocant->_variable_set( $catalog, $variable, $val );
+            $val = $invocant->_substitute_variables($catalog, $val);
+            $invocant->_variable_set($catalog, $variable, $val);
         }
         elsif (
             $key eq 'include'
             and my @incfiles = grep -f $_, glob($val)
         ) {
             for (@incfiles) {
-                $invocant->_parse_file( $catalog, $_ );
+                $invocant->_parse_file($catalog, $_);
             }
         }
-        
+
         $mark_type = $key = $val = $marker = undef;
     }
-    
+
     die "Configuration file '$file' contains unterminated <<HERE doc (<$mark_type$marker)!\n" if defined $marker;
     die "Configuration file '$file' contained unterminated #ifdef!\n" if defined $ifdef;
-    close $CONF;
+    close $CONF or die "Error closing $file\n";
 
     @$scoped_parse_var_flag = @$scoped_parse_var_flag[0..$entry_scope];
     return;
@@ -565,7 +553,7 @@ sub _ifdef {
     $ifdef =~ /^\s*(\@?)(\w+)\s*(.*)/;
     ($var, $expr) = ($2, $3);
     $catalog = undef if $1;
-    $value = $invocant->variable( $catalog, $var ) || '';
+    $value = $invocant->variable($catalog, $var) || '';
     if (!$expr) {
         $result = ! (not $value);
     }
@@ -573,7 +561,7 @@ sub _ifdef {
         my $safe = new Safe;
         $result = $safe->reval( "q{$value} $expr" );
         if ($@) {
-            warn sprintf("syntax error in #ifdef at %d of %s: %s", $line, $file, $@);
+            warn sprintf('syntax error in #ifdef at %d of %s: %s', $line, $file, $@);
             $result = undef;
         }
     }
@@ -593,8 +581,7 @@ sub register_catalog {
 sub _catalog_by_name {
     my ($invocant, $catalog) = @_;
     die "You must supply a catalog name to lookup catalog by name.\n"
-        unless defined $catalog and length $catalog
-    ;
+        unless defined $catalog and length $catalog;
     return $invocant->_catalogs->{$catalog};
 }
 
@@ -605,29 +592,26 @@ sub known_catalogs {
         return defined($invocant->_catalog_by_name($name)) && 1;
     }
     return sort {$a cmp $b} keys %{$invocant->_catalogs} if wantarray;
-    die 'You must supply a catalog name when calling in a scalar context!';
+    die "You must supply a catalog name when calling in a scalar context!\n";
 }
 
 sub smart_variable {
     my $invocant = shift;
     my $variable = shift;
-    die 'No variable specified!'
-        unless defined $variable
-    ;
+    die "No variable specified!\n"
+        unless defined $variable;
     my $catalog = shift;
     $catalog = $invocant->catalog if ! defined $catalog;
     my $result;
     if (defined($catalog)) {
         die "Catalog '$catalog' is unknown; please register it"
             if defined $catalog
-            and ! $invocant->known_catalogs( $catalog )
-        ;
+                and ! $invocant->known_catalogs($catalog);
         my $repository = $invocant->_catalog_variables($catalog);
         $result
             = exists($repository->{$variable})
                 ? $repository->{$variable}
-                : $invocant->_server_variables->{$variable}
-        ;
+                : $invocant->_server_variables->{$variable};
     }
     else {
         $result = $invocant->_server_variables->{$variable};
@@ -676,14 +660,14 @@ sub parse_all_files {
     }
 
     chdir $cwd;
-    
+
     $invocant->_validate_run_environment;
 
     for my $catalog ($invocant->known_catalogs) {
         # Set the catalog temporarily (needed for catalog_path(), at least).
         $invocant->set_catalog($catalog);
         chdir $invocant->catalog_path();
-        push @$scoped_parse_var_flag, $scoped_parse_var_flag->[$#$scoped_parse_var_flag];
+        push @$scoped_parse_var_flag, $scoped_parse_var_flag->[-1];
         for my $file (@catalog_files) {
             eval {
                 $invocant->_parse_file(
@@ -692,8 +676,7 @@ sub parse_all_files {
                 );
             };
             warn "Unable to parse file $file for catalog $catalog:\n\t$@\n"
-                if $@
-            ;
+                if $@;
         }
         pop @$scoped_parse_var_flag;
         chdir $cwd;
@@ -712,7 +695,7 @@ sub env_variables {
         push @out, "export $_=" . $var;
     }
     push @out, 'export CAMP_BASE_PATH=' . $invocant->base_path();
-    
+
     my $out = join "\n", @out;
     return $out;
 }
@@ -812,7 +795,7 @@ point in a process, but only if in camp mode:
  eval "use Module::Refresh"
      if Camp::Config->camp
  ;
- 
+
  sub refresh {
      return unless Camp::Config->camp;
      return Module::Refresh->refresh;
@@ -823,7 +806,7 @@ point in a process, but only if in camp mode:
      $self->refresh;
      ....here's where you implement your awesomeness...
  }
- 
+
  Module::Refresh->new if Camp::Config->camp;
  ...
 
@@ -1166,7 +1149,7 @@ to the DBI->connect() routine.  If nothing is passed in, it will default to usin
 AutoCommit => 1 and RaiseError => 1.
 
 The database handle is not set in the class or cached, you will get a new one
-each time you call this routine. 
+each time you call this routine.
 
 =item B<db_dsn( $catalog )>
 
@@ -1176,14 +1159,14 @@ of the caveats for that apply here.
 
 =item B<db_user( $catalog )>
 
-Returns the value set in the SQLUSER variable for the catalog specified.  
-It uses the smart_variable subroutine, so all 
+Returns the value set in the SQLUSER variable for the catalog specified.
+It uses the smart_variable subroutine, so all
 of the caveats for that apply here.
 
 =item B<db_password( $catalog )>
 
 Returns the value set in the SQLPASS variable for the catalog specified.
-I<$catalog> is optional.  It uses the smart_variable subroutine, so all 
+I<$catalog> is optional.  It uses the smart_variable subroutine, so all
 of the caveats for that apply here.
 
 =over

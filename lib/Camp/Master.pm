@@ -173,7 +173,7 @@ sub read_camp_config {
         next if /^\s*#/;
         push @edits, $_;
     }
-    close $CONFIG;
+    close $CONFIG or die "Error closing $file\n";
     %edits = map { $_ => 1, } @edits;
     $has_rails = $has_ic = undef;
     return @edits;
@@ -255,7 +255,7 @@ sub camp_db_config {
         die "Invalid key/value pair in $file at line $.!: $_\n" unless defined $key;
         ${ $camp_db_config ||= {} }{$key} = $val;
     }
-    close $FILE;
+    close $FILE or die "Error closing $file\n";
     die "No settings found in $file for camp db access!\n" unless defined $camp_db_config and %$camp_db_config;
     return %$camp_db_config;
 }
@@ -433,22 +433,27 @@ sub process_copy_paths {
     }
 
     die "The copy-paths data structures are invalid; only hashes are allowed within the array!\n"
-        if grep { !( ref($_) eq 'HASH' and defined($_->{source}) and defined($_->{target}) ) } @data
-    ;
+        if grep {
+            !( ref($_) eq 'HASH'
+            and defined($_->{source})
+            and defined($_->{target}) )
+        } @data;
 
     for my $copy (@data) {
         my $link = defined($copy->{default_link}) && $copy->{default_link};
 
         my $src = $copy->{source};
         $src = substitute_hash_tokens($src, $conf) if $copy->{parse_source};
-        my $src_trail++ if $src =~ m{/$};
+        my $src_trail;
+        $src_trail++ if $src =~ m{/$};
         $src = File::Spec->catfile( type_path(), $src )
             if ! File::Spec->file_name_is_absolute($src) && ! defined $copy->{remote_source};
         $src .= '/' if $src_trail and $src !~ m{/$};
 
         my $target = $copy->{target};
         $target = substitute_hash_tokens($target, $conf) if $copy->{parse_target};
-        my $target_trail++ if $target =~ m{/$};
+        my $target_trail;
+        $target_trail++ if $target =~ m{/$};
         $target = File::Spec->catfile( $conf->{path}, $target );
         $target .= '/' if $target_trail and $target !~ m{/$};
 
@@ -615,6 +620,7 @@ sub set_camp_user {
     ;
     $camp_user = $camp_user_obj->name;
     $camp_user_info = set_camp_user_info( $camp_user );
+    return;
 }
 
 sub set_camp_user_info {
@@ -631,13 +637,13 @@ sub get_camp_info {
     my $row = dbh()->selectrow_hashref('SELECT * FROM camps WHERE camp_number = ?', undef, $camp,);
     die "Camp '$camp' is unknown!\n"
         unless ref($row) and $row->{camp_type} and $row->{vcs_type};
-    return $row; 
+    return $row;
 }
 
 sub set_camp_comment {
     my ($number, $comment) = @_;
-
-    dbh()->do('UPDATE camps SET comment = ? WHERE camp_number = ?', undef, $comment, $number); 
+    dbh()->do('UPDATE camps SET comment = ? WHERE camp_number = ?', undef, $comment, $number);
+    return;
 }
 
 sub camp_user {
@@ -733,7 +739,7 @@ sub _config_hash_db {
     $hash->{db_host}       = 'localhost';
     $hash->{db_port}       = 8900 + $camp_number;
     $hash->{db_encoding}   = 'UTF-8',
-#    $hash->{db_locale}     = undef; 
+#    $hash->{db_locale}     = undef;
     $hash->{db_data}       = File::Spec->catfile( $hash->{db_path}, 'data', );
     $hash->{db_tmpdir}     = File::Spec->catfile( $hash->{db_path}, 'tmp', );
 
@@ -742,7 +748,6 @@ sub _config_hash_db {
         $hash->{db_conf}       = File::Spec->catfile( $hash->{db_data}, 'postgresql.conf', );
     }
     elsif ($hash->{db_type} eq 'mysql') {
-        # mysql
         $hash->{db_log}        = File::Spec->catfile( $hash->{db_tmpdir}, 'mysql.log', );
         $hash->{db_conf}       = File::Spec->catfile( $hash->{path}, 'my.cnf', );
         $hash->{db_socket}     = File::Spec->catfile( $hash->{db_tmpdir}, "mysql.$camp_number.sock" );
@@ -750,6 +755,8 @@ sub _config_hash_db {
     else {
         die "Unknown database type!\n";
     }
+
+    return;
 }
 
 sub _determine_db_type_and_path {
@@ -1076,7 +1083,7 @@ linker programs.  Specify at least one for your main catalog.
 The name of the catalog for your camp's Interchange deployment.  Specify one, even if you have multiple
 catalogs; the I<catroot> variable is set based on this.  For the majority of End Point Interchange
 deployments, multiple catalogs are a non-issue.
- 
+
 =back
 
 Some optional variables may also be provided to affect the functioning of your camp deployment:
@@ -1234,9 +1241,8 @@ Like I<repo_path>, there is no default value for this particular setting.
 sub config_hash {
     if (! defined $conf_hash) {
         my $camp_number = shift;
-        die "Must provide a camp number for initialization of config_hash()!"
-            unless defined $camp_number and $camp_number =~ /^\d+$/
-        ;
+        die "Must provide a camp number for initialization of config_hash()!\n"
+            unless defined $camp_number and $camp_number =~ /^\d+$/;
         $conf_hash = {
             %{ camp_user_info() },
             number  => $camp_number,
@@ -1246,14 +1252,14 @@ sub config_hash {
             type_path   => type_path(),
             base_path   => base_path(),
         };
-        $conf_hash->{path} = File::Spec->catfile( $conf_hash->{root}, $conf_hash->{name}, );
+        $conf_hash->{path} = File::Spec->catfile( $conf_hash->{root}, $conf_hash->{name} );
         if (has_ic()) {
-            $conf_hash->{icroot}    = File::Spec->catfile( $conf_hash->{path}, 'interchange',);
-            $conf_hash->{cgidir}    = File::Spec->catfile( $conf_hash->{path}, 'cgi-bin', );
+            $conf_hash->{icroot} = File::Spec->catfile($conf_hash->{path}, 'interchange');
+            $conf_hash->{cgidir} = File::Spec->catfile($conf_hash->{path}, 'cgi-bin');
         }
-        $conf_hash->{docroot}   = File::Spec->catfile( $conf_hash->{path}, 'htdocs', );
+        $conf_hash->{docroot}   = File::Spec->catfile($conf_hash->{path}, 'htdocs');
         if (has_rails()) {
-            $conf_hash->{railsdir}  = File::Spec->catfile( $conf_hash->{path}, 'rails', );
+            $conf_hash->{railsdir}  = File::Spec->catfile($conf_hash->{path}, 'rails');
             $conf_hash->{mongrel_base_port} = 5 * $camp_number + 9200;
             $conf_hash->{proxy_name} = "camp_${camp_number}_mongrel_proxy";
             $conf_hash->{proxy_balance_members} = join(
@@ -1268,7 +1274,7 @@ sub config_hash {
 
         _config_hash_db( $conf_hash, $camp_number );
 
-        $conf_hash->{httpd_path}    = File::Spec->catfile( $conf_hash->{path}, 'httpd', );
+        $conf_hash->{httpd_path}    = File::Spec->catfile($conf_hash->{path}, 'httpd');
         $conf_hash->{httpd_lib_path}    = '/usr/lib/httpd/modules';
         $conf_hash->{httpd_cmd_path}    = '/usr/sbin/httpd';
         $conf_hash->{http_port}     = 9000 + $camp_number;
@@ -1283,22 +1289,20 @@ sub config_hash {
                 next unless $line =~ /\S/;
                 next if $line =~ /^\s*#/;
                 if (my ($key,$val) = $line =~ /^\s*(\w+):(.*?)\s*$/) {
-                    $conf_hash->{$key} = substitute_hash_tokens( $val, $conf_hash, );
+                    $conf_hash->{$key} = substitute_hash_tokens($val, $conf_hash);
                 }
                 else {
                     warn "Skipping invalid line in file $conf_file: $line\n";
                     next;
                 }
             }
-            close $CONF;
+            close $CONF or die "Error closing $conf_file\n";
         }
         die "Must specify a hostname within your base camp or type local-config!\n"
-            unless defined $conf_hash->{hostname} and $conf_hash->{hostname} =~ /\S/
-        ;
+            unless defined $conf_hash->{hostname} and $conf_hash->{hostname} =~ /\S/;
         die "Must specify the camp directory list within your base camp or type local-config!\n"
             unless defined $conf_hash->{camp_subdirectories}
-                and $conf_hash->{camp_subdirectories} =~ /\S/
-        ;
+                and $conf_hash->{camp_subdirectories} =~ /\S/;
         $conf_hash->{camp_subdirectories} = [
             split /[\s,]+/, $conf_hash->{camp_subdirectories}
         ];
@@ -1316,8 +1320,7 @@ sub config_hash {
         if (has_ic()) {
             die "Must provide catalog linker names within base camp or type local-config!\n"
                 unless defined $conf_hash->{catalog_linker_filenames}
-                    and $conf_hash->{catalog_linker_filenames} =~ /\S/
-            ;
+                    and $conf_hash->{catalog_linker_filenames} =~ /\S/;
             $conf_hash->{catalog_linker_filenames} = [
                 split /[\s,]+/, $conf_hash->{catalog_linker_filenames},
             ];
@@ -1336,7 +1339,7 @@ sub config_hash {
             L   => 'New York',
             O   => 'End Point Corporation',
         );
-        
+
         for my $token (keys %ssl_defaults) {
             my $key = "ssl_$token";
             next if defined $conf_hash->{$key} and $conf_hash->{$key} =~ /\S/;
@@ -1351,13 +1354,11 @@ sub cleanup_camp_path {
     my $cfg = config_hash( $camp );
     if (-d $cfg->{path}) {
         die "Won't overwriting existing $cfg->{path} directory without replace option.\n"
-            unless $replace
-        ;
+            unless $replace;
         my $dir = pushd($cfg->{path}) or die "Couldn't chdir $cfg->{path}: $!\n";
         # rmtree will fail on write-protected .svn directories; remove these with a find operation
         -d $_ && do_system(sprintf('find %s %s',  $_, q(-name '.svn' -type d -prune -exec rm -rf '{}' \\;)))
-            for @{$cfg->{camp_subdirectories}}
-        ;
+            for @{$cfg->{camp_subdirectories}};
         rmtree(
             $cfg->{camp_subdirectories},
             0,
@@ -1372,6 +1373,7 @@ sub create_camp_path {
     my $cfg = config_hash( $camp );
     cleanup_camp_path($camp, $replace);
     mkpath($cfg->{path}) or die "Couldn't make camp path: $cfg->{path}: $!\n";
+    return;
 }
 
 sub register_camp {
@@ -1415,7 +1417,7 @@ sub resolve_camp_number {
     # look at environment
     $camp = validate_camp_number($ENV{CAMP});
     return $camp if defined $camp;
-    
+
     # look at path
     getcwd() =~ m{/camp(\d+)\b} and do {
         $camp = validate_camp_number($1);
@@ -1445,8 +1447,8 @@ sub git_repository {
             $hash->{repo_path_git},
             $hash->{repo_path},
             'repo.git',
-        )
-    ;
+        );
+    return;
 }
 
 sub svn_repository {
@@ -1456,8 +1458,8 @@ sub svn_repository {
             $hash->{repo_path_svn},
             $hash->{repo_path},
             'svnrepo/trunk',
-        )
-    ;
+        );
+    return;
 }
 
 sub svn_checkout {
@@ -1508,22 +1510,19 @@ sub _initialize_svk {
         svk_mirror_path(),
         svk_local_path(),
     );
-    
+
     die "Repo path is not specified!  Please set the repo_path in your base or type local-config.\n"
-        unless defined($repo) and $repo =~ /\S/
-    ;
+        unless defined($repo) and $repo =~ /\S/;
 
     die "Mirror path is not specified!  Please set the repo_mirror in your base or type local-config.\n"
-        unless defined($mirror) and $mirror =~ /\S/
-    ;
+        unless defined($mirror) and $mirror =~ /\S/;
 
     die "SVK local base path is not specified.  Please set repo_svk_local in your base or type local-config.\n"
-        unless defined($local) and $local =~ /\S/
-    ;
+        unless defined($local) and $local =~ /\S/;
 
     # Prepare the default depot; harmless if it already exists.
     do_system_soft(q{svk depotmap --init});
-    
+
     # If the mirror has already been set up, info will be successful.
     if (do_system_soft(sprintf q{svk info %s}, $mirror) == 0) {
         print "SVK mirror $mirror already exists.\n";
@@ -1639,7 +1638,7 @@ sub vcs_local_refresh {
     my %map = (
         svn => 'svn up',
         svk => 'svk up',
-        git => 'git checkout', 
+        git => 'git checkout',
     );
     my $cmd = $map{$vcs_type} or die "No local refresh command available for VCS type '$vcs_type'.\n";
     return do_system($cmd);
@@ -1706,9 +1705,8 @@ sub prepare_apache {
     mkpath([ map { File::Spec->catfile( $conf->{httpd_path}, $_, ) } qw( conf logs run ) ]);
 
     # symlink to system-wide Apache modules
-    symlink $conf->{httpd_lib_path}, File::Spec->catfile( $conf->{httpd_path}, 'modules', )
-        or die "Couldn't symlink Apache modules directory\n"
-    ;
+    symlink $conf->{httpd_lib_path}, File::Spec->catfile($conf->{httpd_path}, 'modules')
+        or die "Couldn't symlink Apache modules directory\n";
 
     # Create SSL certificate
     my $crt_path = File::Spec->catfile( $conf->{httpd_path}, 'conf', 'ssl.crt', );
@@ -1731,7 +1729,7 @@ CN                = $conf->{hostname}
 emailAddress      = $conf->{admin_email}
 
 [ req_attributes ]
-challengePassword = 
+challengePassword =
 EOF
     $tmpfile->close;
     do_system(
@@ -1830,10 +1828,10 @@ necessary, and vary in a controlled way between environments by virtue of being 
 
 sub install_templates {
     my $conf = config_hash();
-    my $template_path = File::Spec->catfile( type_path(), 'etc', );
+    my $template_path = File::Spec->catfile(type_path(), 'etc');
     local $/;
     for my $file (@edits) {
-        my $source_path = File::Spec->catfile( $template_path, $file, );
+        my $source_path = File::Spec->catfile($template_path, $file);
         print "Interpolating tokenized template file '$source_path'...";
         open(my $INFILE, '<', $source_path) or die "Failed to open template file '$source_path': $!\n";
         my $template = <$INFILE>;
@@ -1841,16 +1839,17 @@ sub install_templates {
             $template,
             $conf,
         );
-        close $INFILE;
-        my $parent_path = my $target_path = File::Spec->catfile( $conf->{path}, $file, );
+        close $INFILE or die "Error closing $source_path\n";
+        my $parent_path = my $target_path = File::Spec->catfile($conf->{path}, $file);
         $parent_path =~ s:/[^/]+$::;
         print " installing to '$target_path'.\n";
         mkpath( $parent_path );
         open(my $OUTFILE, '>', $target_path) or die "Failed writing configuration file '$target_path': $!\n";
         print $OUTFILE $template;
-        close $OUTFILE;
+        close $OUTFILE or die "Error closing $target_path\n";
     }
     type_message('install_templates');
+    return;
 }
 
 sub prepare_rails {
@@ -1861,7 +1860,7 @@ sub prepare_rails {
 
 sub roles {
     parse_roles() unless defined $roles;
-    return sort { $a cmp $b } keys %$roles;
+    return sort keys %$roles;
 }
 
 sub role_password {
@@ -1875,8 +1874,7 @@ sub role_password {
         my $config = config_hash();
         $config->{"db_role_${role}_pass"}
             = $role_hash->{password}
-            = generate_nice_password()
-        ;
+            = generate_nice_password();
     }
     return $role_hash->{password} ||= generate_nice_password();
 }
@@ -1886,8 +1884,7 @@ sub role_sql {
     parse_roles() unless defined $roles;
     my $role_hash = $roles->{$role};
     die "Cannot find SQL for unknown role '$role'!\n"
-        unless defined $role_hash
-    ;
+        unless defined $role_hash;
     die "Role '$role' has no SQL statement!\n" unless $role_hash->{sql};
     return $role_hash->{parsed_sql} ||= parse_role_sql( $role_hash );
 }
@@ -1898,14 +1895,13 @@ sub parse_roles {
     opendir(my $DIR, roles_path()) or die "Failed to open roles path '$path': $!\n";
     local $/;
     for my $role (grep /^\w+$/, readdir($DIR)) {
-        open(my $ROLE, '<', File::Spec->catfile( $path, $role ))
-            or die "Failed to open role file '$role': $!\n"
-        ;
+        open(my $ROLE, '<', File::Spec->catfile($path, $role))
+            or die "Failed to open role file '$role': $!\n";
         $roles->{$role} = {
             role    => $role,
             sql     => <$ROLE>,
         };
-        close $ROLE;
+        close $ROLE or die "Error closing $path\n";
     }
     closedir($DIR);
     return scalar keys %$roles;
@@ -1917,7 +1913,7 @@ sub parse_role_sql {
         role => $role->{role},
         pass => role_password( $role->{role} ),
     );
-    return substitute_hash_tokens( $role->{sql}, \%data, '', );    
+    return substitute_hash_tokens($role->{sql}, \%data, '');
 }
 
 sub _prepare_database_vars {
@@ -1927,35 +1923,30 @@ sub _prepare_database_vars {
     @$names = @{ $conf->{db_dbnames} };
 
     die "There are no roles configured for this camp type!  Cannot prepare database.\n"
-        unless @$roles
-    ;
+        unless @$roles;
     die "There are no source scripts for this camp type!  Cannot prepare database.\n"
-        unless @$sources
-    ;
+        unless @$sources;
     die "There are no database named specified for this camp type!  Cannot prepare database.\n"
-        unless @$names
-    ;
+        unless @$names;
     return;
 }
 
 sub _verify_camp_path {
     my $conf = shift;
     die "Camp '$conf->{name}' does not appear to have been created; please create it first.\n"
-        unless -d $conf->{path}
-    ;
+        unless -d $conf->{path};
     return 1;
 }
 
 sub _database_exists_check {
     my ($conf, $replace) = @_;
-
-    return 1 unless -d $conf->{db_path};    
+    return 1 unless -d $conf->{db_path};
     die "Database already exists in $conf->{db_path}; must specify 'replace' to overwrite it.\n"
-        unless $replace
-    ;
+        unless $replace;
     _db_type_dispatcher( '_database_running_check' )->( @_ );
     # remove old database's binary data.
-    rmtree($conf->{db_path}, 0, 1,);
+    rmtree($conf->{db_path}, 0, 1);
+    return;
 }
 
 sub _database_running_check_pg {
@@ -1964,8 +1955,7 @@ sub _database_running_check_pg {
     if (system("pg_ctl status -D $conf->{db_data}") == 0) {
         # stop running postgres
         system("pg_ctl stop -D $conf->{db_data} -m fast") == 0
-            or die "Error stopping running Postgres instance!\n"
-        ;
+            or die "Error stopping running Postgres instance!\n";
     }
     return 1;
 }
@@ -1977,8 +1967,7 @@ sub _database_running_check_mysql {
     if (do_system_soft("mysqladmin $opts ping") == 0) {
         # stop running MySQL
         do_system_soft("mysqladmin $opts shutdown") == 0
-            or die "Error stopping running MySQL instance!\n"
-        ;
+            or die "Error stopping running MySQL instance!\n";
     }
     return 1;
 }
@@ -2029,7 +2018,7 @@ sub camp_mysql_options {
 {
     my $yaml_run;
     sub use_yaml {
-        eval "use YAML::Syck ()" if ! $yaml_run++;
+        eval 'use YAML::Syck ()' if ! $yaml_run++;
         return $yaml_run;
     }
 }
@@ -2065,14 +2054,12 @@ sub _prepare_camp_database_client_settings_pg {
     for my $role (@$roles) {
         my $pass = role_password( $role );
         $pass_file_tmp->print("$conf->{db_host}:$conf->{db_port}:$_:$role:$pass\n")
-            for @$dbnames
-        ;
+            for @$dbnames;
     }
     $pass_file_tmp->print($old_pass_data);
     $pass_file_tmp->close or die "Couldn't close $pass_file_tmp: $!\n";
     rename "$pass_file_tmp", $pass_file
-        or die "Couldn't rename $pass_file_tmp to $pass_file: $!\n"
-    ;
+        or die "Couldn't rename $pass_file_tmp to $pass_file: $!\n";
     return 1;
 }
 
@@ -2084,7 +2071,7 @@ sub _prepare_camp_database_client_settings_pg {
 # and store it as YAML.  This is the outbound side of the YAML work you see in camp_mysql_options().
 sub _prepare_camp_database_client_settings_mysql {
     my ($conf, $roles) = @_;
-    
+
     my $settings = {
         users => {},
     };
@@ -2103,8 +2090,7 @@ sub _prepare_camp_database_client_settings_mysql {
     $tmp_file->print( YAML::Syck::Dump( $settings ) );
     $tmp_file->close or die "Couldn't close $tmp_file: $!\n";
     rename "$tmp_file", $file_name
-        or die "Couldn't rename $tmp_file to $file_name: $!\n"
-    ;
+        or die "Couldn't rename $tmp_file to $file_name: $!\n";
     return 1;
 }
 
@@ -2131,17 +2117,12 @@ sub _initialize_camp_database_pg {
         '-U', 'postgres',
     );
     if (! $password_pain) {
-        push @args,
-            '-A', 'md5',
-            "--pwfile=$tmp",
-        ;
+        push @args, '-A', 'md5', "--pwfile=$tmp";
     }
     push @args, "-E $conf->{db_encoding}"
-        if $conf->{db_encoding}
-    ;
+        if $conf->{db_encoding};
     push @args, "--locale=$conf->{db_locale}"
-        if $conf->{db_locale}
-    ;
+        if $conf->{db_locale};
     my $cmd = 'initdb ' . join(' ', @args);
     print "Preparing database cluster:\n$cmd\n";
     system($cmd) == 0 or die "Error executing initdb!\n";
@@ -2244,8 +2225,7 @@ sub _db_connect_pg {
     my $cmd = "psql -X -p $conf->{db_port} -U $opt{user} -d $opt{database}";
     print "Connecting to Postgres: $cmd\n";
     open my $PSQL, "| $cmd"
-        or die "Error opening pipe to psql: $!\n"
-    ;
+        or die "Error opening pipe to psql: $!\n";
     return $PSQL;
 }
 
@@ -2256,8 +2236,7 @@ sub _db_connect_mysql {
     my $cmd = 'mysql ' . camp_mysql_options(%opt);
     print "Connecting to MySQL: $cmd\n";
     open my $MYSQL, "| $cmd"
-        or die "Error opening pipe to mysql: $!\n"
-    ;
+        or die "Error opening pipe to mysql: $!\n";
     return $MYSQL;
 }
 
@@ -2327,13 +2306,12 @@ sub _import_camp_data {
     for my $script (@$sources) {
         my $script_file = File::Spec->file_name_is_absolute($script)
             ? $script
-            : File::Spec->catfile( type_path(), $script, )
-        ;
-        my $cmd = _import_db_cmd( $script_file, $conf );
+            : File::Spec->catfile(type_path(), $script);
+        my $cmd = _import_db_cmd($script_file, $conf);
         print "Processing script '$script':\n$cmd\n";
         system($cmd) == 0 or die "Error importing data\n";
     }
-
+    return;
 }
 
 sub _import_db_cmd {
@@ -2368,17 +2346,15 @@ sub prepare_database {
     # initialize database paths including base, data, tmp
     mkdir $conf->{db_path} or die "Could not make database path '$conf->{db_path}': $!\n";
     mkdir $conf->{db_data} or die "Couldn't make database data path '$conf->{db_data}': $!\n"
-        unless -d $conf->{db_data}
-    ;
+        unless -d $conf->{db_data};
     mkdir $conf->{db_tmpdir} or die "Couldn't make database tmp/ path '$conf->{db_tmpdir}': $!\n"
-        unless -d $conf->{db_tmpdir}
-    ;
+        unless -d $conf->{db_tmpdir};
 
     _prepare_camp_database_client_settings( $conf, \@roles, \@dbnames );
 
-    _initialize_camp_database( $conf );
+    _initialize_camp_database($conf);
 
-    _render_database_config( $conf )
+    _render_database_config($conf)
         unless $conf->{_did_render_database_config};
 
     # Start new camp database instance
@@ -2392,7 +2368,7 @@ sub prepare_database {
 
     _import_camp_data( \@sources, $conf );
 
-    type_message('prepare_database'); 
+    type_message('prepare_database');
     return;
 }
 
@@ -2521,8 +2497,7 @@ sub rails_control {
     mkpath( [ map { File::Spec->catfile( $conf->{railsdir}, 'var', $_, ) } qw( log run ) ] );
     my $cmd = join('; ', map { "mongrel_rails cluster::$_" } @actions);
     do_system_soft( "cd $conf->{railsdir} && ($cmd)" ) == 0
-        and return 1
-    ;
+        and return 1;
     return;
 }
 
@@ -2532,7 +2507,7 @@ sub ic_control {
     $ENV{CAMP} = $conf->{number};
     return do_system_soft("$conf->{icroot}/bin/interchange --$action") == 0;
 }
- 
+
 sub db_control {
     return _db_type_dispatcher( '_db_control' )->(@_);
 }
@@ -2542,8 +2517,7 @@ sub _db_control_mysql {
     my $conf = config_hash();
     die "Need db_data definition!\n"
         unless defined $conf->{db_data}
-        and $conf->{db_data} =~ /\S/
-    ;
+            and $conf->{db_data} =~ /\S/;
     my $cmd;
     $action = lc($action);
     if ($action eq 'restart') {
@@ -2559,9 +2533,8 @@ sub _db_control_mysql {
         $cmd = "mysqladmin --defaults-file=$conf->{db_conf} $opt $action";
     }
     do_system_soft($cmd) == 0
-        and return 1
-    ;
-    return undef; 
+        and return 1;
+    return;
 }
 
 sub _db_control_pg {
@@ -2569,8 +2542,7 @@ sub _db_control_pg {
     my $conf = config_hash();
     die "Need db_data definition!\n"
         unless defined $conf->{db_data}
-        and $conf->{db_data} =~ /\S/
-    ;
+            and $conf->{db_data} =~ /\S/;
     my $cmd = "pg_ctl -D $conf->{db_data} -l $conf->{db_tmpdir}/pgstartup.log -m fast";
     # Work around old pg_ctl's terrible -w implementation, as evidenced by
     # this comment there: "FIXME:  This is horribly misconceived."
@@ -2588,15 +2560,12 @@ sub httpd_control {
     my $conf = config_hash();
     die "Need httpd_cmd_path definition!\n"
         unless defined $conf->{httpd_cmd_path}
-        and $conf->{httpd_cmd_path} =~ /\S/
-    ;
+            and $conf->{httpd_cmd_path} =~ /\S/;
     die "Need httpd_path definition!\n"
         unless defined $conf->{httpd_path}
-        and $conf->{httpd_path} =~ /\S/
-    ;
+            and $conf->{httpd_path} =~ /\S/;
     do_system_soft("$conf->{httpd_cmd_path} -d $conf->{httpd_path} -k $action") == 0
-        and return 1
-    ;
+        and return 1;
     return;
 }
 
@@ -2630,7 +2599,7 @@ sub type_message {
     local $/;
     open my $MSG, '<', $message_file or die "Failed to open message file $message_file: $!\n";
     print "\n" . <$MSG> . "\n";
-    close $MSG;
+    close $MSG or die "Error closing $message_file\n";
     return 1;
 }
 
@@ -2679,11 +2648,10 @@ sub camp_list {
     my %opt = @_;
     die "You must specify a camp type!\n"
         unless $opt{type}
-        or $opt{all}
-        or $opt{user}
-    ;
-    my (@args, $where);
+            or $opt{all}
+            or $opt{user};
 
+    my (@args, $where);
     $where = '';
 
     if ($opt{type}) {

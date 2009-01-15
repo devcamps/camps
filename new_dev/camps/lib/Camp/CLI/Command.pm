@@ -89,6 +89,12 @@ has _user_config => (
             $config->{path} = File::HomeDir->my_home;
             print "$config->{path}....Done.\n" if $self->verbose;
         }
+        else {
+            # this handles '~' expansion
+            if ($config->{path} =~ /\A~/) {
+                $config->{path} = glob $config->{path};
+            }
+        }
 
         return $config;
     },

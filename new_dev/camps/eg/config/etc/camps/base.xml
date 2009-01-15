@@ -1,0 +1,16 @@
+<root>
+    <config dir="/home/brian/local/etc/camps">
+        <project name="endpoint.com">
+            <service>HTTP/Apache</service>
+            <service>AppServer/Rails</service>
+            <service>VCS/Git</service>
+            <service>DB/Postgres</service>
+        </project>
+        <project name="residualselfimage.com">
+            <service>HTTP/Apache2</service>
+            <service>AppServer/IC</service>
+            <service>VCS/Git</service>
+            <service>DB/Postgres</service>
+        </project>
+    </config>
+</root>

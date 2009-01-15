@@ -1,10 +1,5 @@
 package Camp::CLI;
 
-#use warnings;
-#use strict;
-
-#use App::Cmd::Setup -app;
-
 use Moose;
 
 extends 'MooseX::App::Cmd';
@@ -28,4 +23,3 @@ Camp::CLI -
 Sets up standard App::Cmd related items.
 
 =cut
-

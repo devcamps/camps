@@ -1,0 +1,5 @@
+* Camp directory format
+    -> Specify something like camp_XX to create camp_19 instead of camp19, default would be campXX (or camp%s)
+* Enable incrementing of verbose option
+    -> Requires custom option type, should be able to specify as '+'
+* Add command for installing or removing a specific service from a camp

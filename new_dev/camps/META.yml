@@ -1,0 +1,104 @@
+---
+name: Camp
+version: 0.01
+author:
+  - 'End Point Corp. <camps@endpoint.com>'
+abstract: Better Development Environments
+license: perl
+resources:
+  license: http://dev.perl.org/licenses/
+build_requires:
+  Config::Any: 0
+  Config::General: 0
+  File::HomeDir: 0
+  Getopt::Long::Descriptive: 0
+  Moose: 0
+  MooseX::App::Cmd: 0
+  MooseX::SimpleConfig: 0
+  Test::More: 0
+provides:
+  Camp:
+    file: lib/Camp.pm
+    version: 0.01
+  Camp::CLI:
+    file: lib/Camp/CLI.pm
+    version: 0.01
+  Camp::CLI::Command:
+    file: lib/Camp/CLI/Command.pm
+    version: 0.01
+  Camp::CLI::Command::connect:
+    file: lib/Camp/CLI/Command/connect.pm
+    version: 0.01
+  Camp::CLI::Command::destroy:
+    file: lib/Camp/CLI/Command/destroy.pm
+    version: 0.01
+  Camp::CLI::Command::exec:
+    file: lib/Camp/CLI/Command/exec.pm
+    version: 0.01
+  Camp::CLI::Command::info:
+    file: lib/Camp/CLI/Command/info.pm
+    version: 0.01
+  Camp::CLI::Command::lint:
+    file: lib/Camp/CLI/Command/lint.pm
+    version: 0.01
+  Camp::CLI::Command::list:
+    file: lib/Camp/CLI/Command/list.pm
+    version: 0.01
+  Camp::CLI::Command::make:
+    file: lib/Camp/CLI/Command/make.pm
+    version: 0.01
+  Camp::CLI::Command::restart:
+    file: lib/Camp/CLI/Command/restart.pm
+    version: 0.01
+  Camp::CLI::Command::start:
+    file: lib/Camp/CLI/Command/start.pm
+    version: 0.01
+  Camp::CLI::Command::test:
+    file: lib/Camp/CLI/Command/test.pm
+    version: 0.01
+  Camp::CLI::Command::update:
+    file: lib/Camp/CLI/Command/update.pm
+    version: 0.01
+  Camp::CLI::CommandWithNumber:
+    file: lib/Camp/CLI/CommandWithNumber.pm
+    version: 0.01
+  Camp::Service:
+    file: lib/Camp/Service.pm
+    version: 0.01
+  Camp::Service::AppServer:
+    file: lib/Camp/Service/AppServer.pm
+    version: 0.01
+  Camp::Service::AppServer::Interchange:
+    file: lib/Camp/Service/AppServer/Interchange.pm
+    version: 0.01
+  Camp::Service::AppServer::Rails:
+    file: lib/Camp/Service/AppServer/Rails.pm
+    version: 0.01
+  Camp::Service::DB:
+    file: lib/Camp/Service/DB.pm
+    version: 0.01
+  Camp::Service::DB::MySQL:
+    file: lib/Camp/Service/DB/MySQL.pm
+    version: 0.01
+  Camp::Service::DB::Postgres:
+    file: lib/Camp/Service/DB/Postgres.pm
+    version: 0.01
+  Camp::Service::HTTP:
+    file: lib/Camp/Service/HTTP.pm
+    version: 0.01
+  Camp::Service::HTTP::Apache:
+    file: lib/Camp/Service/HTTP/Apache.pm
+    version: 0.01
+  Camp::Service::VCS:
+    file: lib/Camp/Service/VCS.pm
+    version: 0.01
+  Camp::Service::VCS::Git:
+    file: lib/Camp/Service/VCS/Git.pm
+    version: 0.01
+  Camp::Service::VCS::Subversion:
+    file: lib/Camp/Service/VCS/Subversion.pm
+    version: 0.01
+generated_by: Module::Build version 0.280801
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2

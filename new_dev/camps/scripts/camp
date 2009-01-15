@@ -1,0 +1,6 @@
+#!perl
+use Camp::CLI;
+
+$| = 1;
+
+Camp::CLI->run;

@@ -891,6 +891,12 @@ The path to the Apache executable for controlling the Apache server.
 
 Defaults to /usr/sbin/httpd.
 
+=item skip_ssl_cert_gen
+
+A boolean (0/1) setting that determines whether to skip generation of a self-signed SSL certificate for the HTTP server.
+
+Default is 0 (false).
+
 =item icroot (I<Interchange only>)
 
 The main interchange directory within the camp.
@@ -1709,11 +1715,12 @@ sub prepare_apache {
         or die "Couldn't symlink Apache modules directory\n";
 
     # Create SSL certificate
-    my $crt_path = File::Spec->catfile( $conf->{httpd_path}, 'conf', 'ssl.crt', );
-    mkpath( $crt_path );
+    unless ($conf->{skip_ssl_cert_gen}) {
+        my $crt_path = File::Spec->catfile( $conf->{httpd_path}, 'conf', 'ssl.crt' );
+        mkpath($crt_path);
 
-    my $tmpfile = File::Temp->new( DIR => camp_user_tmpdir(), UNLINK => 0 );
-    $tmpfile->print(<<EOF);
+        my $tmpfile = File::Temp->new( DIR => camp_user_tmpdir(), UNLINK => 0 );
+        $tmpfile->print(<<EOF);
 [ req ]
 distinguished_name = req_distinguished_name
 attributes         = req_attributes
@@ -1731,16 +1738,18 @@ emailAddress      = $conf->{admin_email}
 [ req_attributes ]
 challengePassword =
 EOF
-    $tmpfile->close;
-    do_system(
-        sprintf(
-            "openssl req -new -x509 -days 3650 -key %s -out %s -config $tmpfile",
-            _ssl_private_key(),
-            File::Spec->catfile($crt_path, "$conf->{hostname}.crt"),
-        ),
-    );
+        $tmpfile->close;
+        do_system(
+            sprintf(
+                "openssl req -new -x509 -days 3650 -key %s -out %s -config $tmpfile",
+                _ssl_private_key(),
+                File::Spec->catfile($crt_path, "$conf->{hostname}.crt"),
+            ),
+        );
 
-    unlink($tmpfile) or die "Error unlinking $tmpfile: $!\n";
+        unlink($tmpfile) or die "Error unlinking $tmpfile: $!\n";
+    }
+
     type_message('prepare_apache');
     return;
 }

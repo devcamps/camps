@@ -173,7 +173,7 @@ sub read_camp_config {
         next if /^\s*#/;
         push @edits, $_;
     }
-    close $CONFIG or die "Error closing $file\n";
+    close $CONFIG or die "Error closing $file: $!\n";
     %edits = map { $_ => 1, } @edits;
     $has_rails = $has_ic = undef;
     return @edits;
@@ -255,7 +255,7 @@ sub camp_db_config {
         die "Invalid key/value pair in $file at line $.!: $_\n" unless defined $key;
         ${ $camp_db_config ||= {} }{$key} = $val;
     }
-    close $FILE or die "Error closing $file\n";
+    close $FILE or die "Error closing $file: $!\n";
     die "No settings found in $file for camp db access!\n" unless defined $camp_db_config and %$camp_db_config;
     return %$camp_db_config;
 }
@@ -1302,7 +1302,7 @@ sub config_hash {
                     next;
                 }
             }
-            close $CONF or die "Error closing $conf_file\n";
+            close $CONF or die "Error closing $conf_file: $!\n";
         }
         die "Must specify a hostname within your base camp or type local-config!\n"
             unless defined $conf_hash->{hostname} and $conf_hash->{hostname} =~ /\S/;
@@ -1848,14 +1848,14 @@ sub install_templates {
             $template,
             $conf,
         );
-        close $INFILE or die "Error closing $source_path\n";
+        close $INFILE or die "Error closing $source_path: $!\n";
         my $parent_path = my $target_path = File::Spec->catfile($conf->{path}, $file);
         $parent_path =~ s:/[^/]+$::;
         print " installing to '$target_path'.\n";
         mkpath( $parent_path );
         open(my $OUTFILE, '>', $target_path) or die "Failed writing configuration file '$target_path': $!\n";
         print $OUTFILE $template;
-        close $OUTFILE or die "Error closing $target_path\n";
+        close $OUTFILE or die "Error closing $target_path: $!\n";
     }
     type_message('install_templates');
     return;
@@ -1910,7 +1910,7 @@ sub parse_roles {
             role    => $role,
             sql     => <$ROLE>,
         };
-        close $ROLE or die "Error closing $path\n";
+        close $ROLE or die "Error closing $path: $!\n";
     }
     closedir($DIR);
     return scalar keys %$roles;

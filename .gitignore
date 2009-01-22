@@ -8,3 +8,4 @@ pm_to_blib*
 .lwpcookies
 camps-*
 cover_db
+.*.swp

@@ -355,7 +355,7 @@ sub dbh {
             $invocant->db_user($catalog),
             $invocant->db_password($catalog),
             $options
-        ) or die "Unable to obtain database handle\n";
+        ) or die "Unable to obtain database handle: $DBI::errstr\n";
 
     return $dbh;
 }

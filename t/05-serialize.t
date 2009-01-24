@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 11;
+use Test::More tests => 14;
 use Test::Exception;
 use Best [
     [ qw[YAML::Syck YAML] ],
@@ -40,3 +40,8 @@ my $p_serialized = $p->serialize;
 is(exists $yaml_hash->{y}, 1, 'Point->y serialized');
 is($yaml_hash->{y}, 10, '$p->y serialized properly');
 is(!exists $yaml_hash->{x}, 1, '$p->x did not serialize');
+
+lives_ok { Point->thaw($p_serialized) } 'Point can call thaw';
+my $o = Point->thaw($p_serialized);
+isa_ok($o, 'Point', 'Point->thaw blesses the YAML value properly');
+is($o->y, $p->y, 'freeze/thaw roundtrips ->y correctly');

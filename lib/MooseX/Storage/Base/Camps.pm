@@ -26,38 +26,41 @@ __END__
 
 =head1 NAME
 
-MooseX::Storage::Basic - The simplest level of serialization
+MooseX::Storage::Base::Camps - Camps serialization
 
 =head1 SYNOPSIS
 
   package Point;
   use Moose;
   use MooseX::Storage;
-  
+
   our $VERSION = '0.01';
-  
-  with Storage;
-  
-  has 'x' => (is => 'rw', isa => 'Int');
-  has 'y' => (is => 'rw', isa => 'Int');
-  
+
+  with Storage(base => 'Camps');
+
+  has 'x' => (is => 'rw', isa => 'Int', persist => 0);
+  has 'y' => (is => 'rw', isa => 'Int', persist => 1);
+
   1;
-  
+
   my $p = Point->new(x => 10, y => 10);
-  
+
   ## methods to pack/unpack an 
   ## object in perl data structures
-  
+
   # pack the class into a hash
-  $p->pack(); # { __CLASS__ => 'Point-0.01', x => 10, y => 10 }
-  
+  # x doesn't serialize
+  $p->pack(); # { __CLASS__ => 'Point-0.01', y => 10 }
+
   # unpack the hash into a class
-  my $p2 = Point->unpack({ __CLASS__ => 'Point-0.01', x => 10, y => 10 });
+  # no x, so x won't be set
+  my $p2 = Point->unpack({ __CLASS__ => 'Point-0.01', y => 10 });
 
 =head1 DESCRIPTION
 
-This is the most basic form of serialization. This is used by default 
-but the exported C<Storage> function.
+This class is a simple override of MooseX::Storage::Basic to work with
+MooseX::Storage::Engine::Camps. It works together to serialize only persistent
+attributes.
 
 =head1 METHODS
 
@@ -89,11 +92,18 @@ Chris Prather E<lt>chris.prather@iinteractive.comE<gt>
 
 Stevan Little E<lt>stevan.little@iinteractive.comE<gt>
 
+Chris Nehren E<lt>cnehren@endpoint.comE<gt> modified this simple class for use
+with Camps.
+
 =head1 COPYRIGHT AND LICENSE
 
 Copyright 2007-2008 by Infinity Interactive, Inc.
 
 L<http://www.iinteractive.com>
+
+Copyright 2009 by End Point Corporation.
+
+L<http://www.endpoint.com>
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

@@ -5,6 +5,39 @@ use warnings;
 use Camp::Moose;
 
 no Camp::Moose;
+
+use Exception::Class (
+    __PACKAGE__.'::Exception' => {
+        description => 'Failed to run execute_command',
+    },
+);
+
+sub format_command {
+	my $self = shift;
+	return @_;
+}
+
+sub validate_result {
+	my $self = shift;
+	my $raw_value = shift;
+
+	return $raw_value;
+}
+
+sub do_command {
+	my $self = shift;
+
+	my $raw_result;
+	eval {
+		$raw_result = $self->execute_command($self->format_command(@_));	
+	};
+    if ($@) {
+        Camp::Interface::Exception->throw($@);
+    }
+
+	return $self->validate_result( $raw_result );
+}
+
 1;
 
 =pod

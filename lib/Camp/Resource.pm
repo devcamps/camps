@@ -172,8 +172,8 @@ Generally speaking, all files for the resource within the camp should be placed 
 
 =head1 RESOURCE SERIALIZATION
 
-The camp system uses YAML to serialize resource configuration state; all attributes that are marked as "persistent" will be included
-in the YAML representation of the resource state.
+The camp system uses YAML to serialize resource configuration state; unless declared otherwise, all attributes will be included in the YAML representation of the resource
+state.
 
 See B<Camp::Object::Meta> for an explanation of how to configure your subclass attributes for inclusion in the serialized representation of B<Camp::Resource> objects.
 Attributes are only included in the serialized representation if they are marked as persistent.

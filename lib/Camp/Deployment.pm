@@ -8,7 +8,6 @@ has path => (
     required    => 1,
     is          => 'rw',
     isa         => 'Str',
-    persist     => 1,
 );
 
 has config_path => (
@@ -18,12 +17,12 @@ has config_path => (
     default     => sub {
         File::Spec->catfile( shift->path, 'camps_deployment.yaml' );
     },
+    metaclass   => 'DoNotSerialize',
 );
 
 has types_path => (
     is          => 'rw',
     isa         => 'Str',
-    persist     => 1,
     lazy        => 1,
     default     => sub {
         File::Spec->catfile( shift->path, 'types' );
@@ -33,7 +32,6 @@ has types_path => (
 has resource_path => (
     is          => 'rw',
     isa         => 'Str',
-    persist     => 1,
     lazy        => 1,
     default     => sub {
         File::Spec->catfile( shift->path, 'resources' );

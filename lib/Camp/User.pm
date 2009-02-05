@@ -10,7 +10,6 @@ has username => (
     is          => 'rw',
     isa         => 'Str',
     required    => 1,
-    persists    => 1,
     trigger     => sub {
         my $self = shift;
         $self->_user( User::pwent::getpwnam( $self->username ) );
@@ -24,13 +23,13 @@ has _user => (
     trigger     => sub {
         shift->_reset_display_name;
     },
+    metaclass   => 'DoNotSerialize',
 );
 
 has email_address => (
     is          => 'rw',
     isa         => 'Str',
     required    => 1,
-    persists    => 1,
 );
 
 has _display_name => (
@@ -43,12 +42,12 @@ has _display_name => (
         return undef unless my $user = $self->_user;
         return $user->comment;
     },
+    metaclass   => 'DoNotSerialize',
 );
 
 has camp_administrator => (
     is          => 'rw',
     isa         => 'Bool',
-    persists    => 1,
     default     => 0,
 );
 

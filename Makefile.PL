@@ -14,10 +14,12 @@ WriteMakefile
                            'MooseX::App::Cmd' => 0,
                            'File::HomeDir' => 0,
                            'Test::More' => 0,
+                           'Test::Exception' => 0,
                            'Config::General' => 0,
                            'Config::Any' => 0,
                            'Getopt::Long::Descriptive' => 0,
-                           'Moose' => 0
+                           'Moose' => 0,
+                           'MooseX::Storage' => 0,
                          }
         )
 ;

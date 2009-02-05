@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 2;
+use Test::More tests => 1;
 
 my $class;
 
@@ -14,20 +14,16 @@ BEGIN {
 
 has serializable => (
     is      => 'rw',
-    persist => 1,
 );
 
 has ephemeral => (
     is      => 'rw',
+    metaclass => 'DoNotSerialize',
 );
 
 package main;
 
-is(
-    join('; ', map { $_->name } Foo->meta->compute_all_persistent_attributes),
-    'serializable',
-    'compute_all_persistent_attributes() and persist setting',
-);
+# with persist gone, not sure how to test this without actually testing
+# MooseX::Storage.
 
 # my $obj = Foo->new( serializable => 'save me', ephemeral => 'lose me' );
-

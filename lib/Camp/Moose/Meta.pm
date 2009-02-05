@@ -16,10 +16,5 @@ sub initialize {
     );
 }
 
-sub compute_all_persistent_attributes {
-    my $self = shift;
-    return grep { $_->can('persists') && $_->persists } $self->compute_all_applicable_attributes;
-}
-
 1;
 

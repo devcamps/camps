@@ -1,9 +1,9 @@
-#!perl -T
+#!perl
 
 use strict;
 use warnings;
 
-use Test::More tests => 14;
+use Test::More tests => 12;
 use Test::Exception;
 use Best [
     [ qw[YAML::Syck YAML] ],
@@ -14,8 +14,6 @@ use lib 't/lib';
 my ($class);
 BEGIN {
     my @classes = qw(
-        MooseX::Storage::Base::Camps 
-        MooseX::Storage::Engine::Camps 
         Point
     );
     for my $class ( @classes ) {

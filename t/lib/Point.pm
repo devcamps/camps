@@ -3,18 +3,17 @@ use Camp::Moose;
 use MooseX::Storage;
 use Camp::Moose::Attribute;
 
-with Storage(base => 'Camps', format => 'YAML');
+with Storage(format => 'YAML');
 
 has 'x' => (
     is => 'rw',
     isa => 'Int',
-    persist => 0,
+    metaclass => 'DoNotSerialize'
 );
 
 has 'y' => (
     is => 'rw',
     isa => 'Int',
-    persist => 1,
 );
 
 no Camp::Moose;

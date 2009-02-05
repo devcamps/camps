@@ -2,14 +2,6 @@
 Changes
 eg/config/.camprc
 eg/config/etc/camps/base.xml
-inc/Module/Install.pm
-inc/Module/Install/Base.pm
-inc/Module/Install/Can.pm
-inc/Module/Install/Fetch.pm
-inc/Module/Install/Makefile.pm
-inc/Module/Install/Metadata.pm
-inc/Module/Install/Win32.pm
-inc/Module/Install/WriteAll.pm
 lib/Camp.pm
 lib/Camp/CLI.pm
 lib/Camp/CLI/Command.pm
@@ -31,9 +23,10 @@ lib/Camp/Moose.pm
 lib/Camp/Moose/Attribute.pm
 lib/Camp/Moose/Meta.pm
 lib/Camp/Moose/Object.pm
+lib/Camp/PortRange.pm
 lib/Camp/Resource.pm
-lib/MooseX/Storage/Base/Camps.pm
-lib/MooseX/Storage/Engine/Camps.pm
+lib/Camp/Type.pm
+lib/Camp/User.pm
 Makefile.PL
 MANIFEST			This list of files
 META.yml
@@ -44,7 +37,10 @@ t/01-resource_base.t
 t/02-camp_moose.t
 t/03-camp_interface.t
 t/04-camp_deployment.t
-t/05-serialize.t
+t/05-camp_user.t
+t/06-camp_type.t
+t/07-camp_portrange.t
+t/99-serialize.t
 t/lib/Point.pm
 t/pod-coverage.t.disabled
 t/pod.t

@@ -1,8 +1,8 @@
-DROP TABLE camp_numbers;
-DROP TABLE camps;
-DROP TABLE vcs_types;
-DROP TABLE camp_users;
-DROP TABLE camp_types;
+DROP TABLE IF EXISTS camp_numbers;
+DROP TABLE IF EXISTS camps;
+DROP TABLE IF EXISTS vcs_types;
+DROP TABLE IF EXISTS camp_users;
+DROP TABLE IF EXISTS camp_types;
 
 CREATE TABLE camp_users (
 	username	VARCHAR(32) PRIMARY KEY,

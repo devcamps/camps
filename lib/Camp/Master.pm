@@ -1320,7 +1320,7 @@ sub config_hash {
         ];
 
         $conf_hash->{db_mysql_scripts} = [
-            split /[\s,]+/, $conf_hash->{db_mysql_scripts}
+            split /[\s,]+/, $conf_hash->{db_mysql_scripts} || ''
         ] if $conf_hash->{db_type} eq 'mysql';
 
         if (has_ic()) {

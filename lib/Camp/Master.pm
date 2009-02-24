@@ -2338,7 +2338,7 @@ sub _import_db_cmd_pg {
 
 sub _import_db_cmd_mysql {
     my ($script, $conf) = @_;
-    return 'mysql ' . camp_mysql_options() . " < $script";
+    return 'mysql ' . camp_mysql_options( user => 'root', no_database => 1 ) . " < $script";
 }
 
 sub prepare_database {

@@ -2,3 +2,21 @@ Development camps: better development environments
 http://www.devcamps.org/
 
 Version 3.00
+
+
+Perl and module requirements:
+
+Perl 5.8.7 or newer
+DBI
+DBD::Pg or DBD::mysql
+File::pushd
+List::Util
+Pod::Usage
+Scalar::Util
+YAML::Syck
+
+
+Included library documentation:
+
+perldoc lib/Camp/Master.pm
+perldoc lib/Camp/Config.pm

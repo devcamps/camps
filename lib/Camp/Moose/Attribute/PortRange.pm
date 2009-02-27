@@ -1,6 +1,7 @@
-package Camp::PortRange;
+package Camp::Moose::Attribute::PortRange;
 
 use Camp::Moose;
+extends 'Camp::Moose::Attribute';
 
 has base_port => (
     is      => 'rw',
@@ -25,6 +26,9 @@ sub _determine_maximum_port {
     my $self = shift;
     return;
 }
+
+package Moose::Meta::Attribute::Custom::PortRange;
+sub register_implementation { 'Camp::Moose::Attribute::PortRange' };
 
 1;
 

@@ -4,21 +4,18 @@ use strict;
 use warnings;
 
 use Moose;
+use Moose::Exporter;
 use Camp::Moose::Meta;
 use Camp::Moose::Object;
 
-sub import {
-    my $CALLER = caller();
+Moose::Exporter->setup_import_methods(
+    as_is   => [ \&has_port_range ],
+    also    => 'Moose',
+);
 
-    strict->import;
-    warnings->import;
+Moose->init_meta( for_class => caller(), base_class => 'Camp::Moose::Object', metaclass => 'Camp::Moose::Meta' );
 
-    return if $CALLER eq 'main';
-    Moose::init_meta( $CALLER, 'Camp::Moose::Object', 'Camp::Moose::Meta' );
-    Moose->import({ into => $CALLER });
-
-    return 1;
+sub has_port_range {
 }
 
 1;
-

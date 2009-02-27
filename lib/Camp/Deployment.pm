@@ -167,8 +167,6 @@ Or get a list of all the camp types known to your deployment:
 It should not really be necessary to use B<Camp::Deployment> directly if you're a user of camps; this module
 is intended for use within the camps codebase itself.
 
-=back
-
 =head1 ATTRIBUTES
 
 =over

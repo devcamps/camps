@@ -24,7 +24,6 @@ lib/Camp/Moose/Attribute.pm
 lib/Camp/Moose/Attribute/PortRange.pm
 lib/Camp/Moose/Meta.pm
 lib/Camp/Moose/Object.pm
-lib/Camp/PortRange.pm
 lib/Camp/Resource.pm
 lib/Camp/Type.pm
 lib/Camp/User.pm
@@ -41,7 +40,6 @@ t/04-camp_deployment.t
 t/05-camp_user.t
 t/06-camp_type.t
 t/07-camp_moose_attribute_portrange.t
-t/07-camp_portrange.t
 t/99-serialize.t
 t/lib/Point.pm
 t/lib/PortRange1.pm

@@ -891,6 +891,12 @@ The path to the Apache executable for controlling the Apache server.
 
 Defaults to /usr/sbin/httpd.
 
+=item httpd_specify_conf
+
+Specify location of configuration file under "httpd_path" and include that in command strings.
+
+For example, "conf/apache2.conf", used when executable has been compiled with a specific full path. To detect need for this option see httpd -V output and check for "SERVER_CONFIG_FILE" with a value similar to "/etc/apache2/apache2.conf" (any path beginning with "/").
+
 =item skip_ssl_cert_gen
 
 A boolean (0/1) setting that determines whether to skip generation of a self-signed SSL certificate for the HTTP server.
@@ -2573,7 +2579,13 @@ sub httpd_control {
     die "Need httpd_path definition!\n"
         unless defined $conf->{httpd_path}
             and $conf->{httpd_path} =~ /\S/;
-    do_system_soft("$conf->{httpd_cmd_path} -d $conf->{httpd_path} -k $action") == 0
+
+    my $cmd = "$conf->{httpd_cmd_path} -d $conf->{httpd_path} -k $action";
+    if (defined $conf->{httpd_specify_conf} and $conf->{httpd_specify_conf} =~ /\S/) {
+        $cmd .= " -f $conf->{httpd_path}/$conf->{httpd_specify_conf}";
+    }
+
+    do_system_soft($cmd) == 0
         and return 1;
     return;
 }

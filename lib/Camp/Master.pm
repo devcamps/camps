@@ -1906,8 +1906,9 @@ sub role_sql {
 
 sub parse_roles {
     $roles = {};
+    my $password_cache = role_password_cache();
     my $path = roles_path();
-    opendir(my $DIR, roles_path()) or die "Failed to open roles path '$path': $!\n";
+    opendir(my $DIR, $path) or die "Failed to open roles path '$path': $!\n";
     local $/;
     for my $role (grep /^\w+$/, readdir($DIR)) {
         open(my $ROLE, '<', File::Spec->catfile($path, $role))
@@ -1916,6 +1917,10 @@ sub parse_roles {
             role    => $role,
             sql     => <$ROLE>,
         };
+
+        if (my $pw = $password_cache->{$role}) {
+            $roles->{$role}->{password} = $pw;
+        }
         close $ROLE or die "Error closing $path: $!\n";
     }
     closedir($DIR);
@@ -1985,6 +1990,25 @@ sub _database_running_check_mysql {
             or die "Error stopping running MySQL instance!\n";
     }
     return 1;
+}
+
+sub role_password_cache {
+    return _camp_db_type_dispatcher( 'role_password_cache' )->( @_ );
+}
+
+sub role_password_cache_pg {
+    return {};
+}
+
+sub role_password_cache_mysql {
+    my %opt = @_;
+    my $conf = $opt{config} || config_hash();
+    my $path = camp_mysql_settings_file($conf);
+
+    return {} unless -f $path;
+
+    my $settings = parse_yaml( $path );
+    return $settings->{users} || {};
 }
 
 sub camp_mysql_settings_file {

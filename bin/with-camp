@@ -1,11 +1,5 @@
 #!/usr/local/bin/perl
 
-# revised with-camp helper; obsoletes psql_camp and with-camp both.
-# we could alias psql_camp to with-camp psql
-
-# also enables pgdump, etc of camp database without further tool
-# creation/modification.
-
 use strict;
 use warnings;
 use lib '/home/camp/lib';
@@ -53,3 +47,43 @@ $ENV{PATH}     = "$ENV{PATH}:$ENV{HOME}/camp$camp/bin";
 $ENV{CAMP}     = $camp;
 
 exec @ARGV;
+
+
+=pod
+
+=head1 NAME
+
+with-camp - wrapper to run another command with camp awareness
+
+=head1 VERSION
+
+3.00
+
+=head1 DESCRIPTION
+
+This utility sets necessary environment variables so that you can use
+pg_dump and similar programs without needing a separate wrapper like
+psql_camp for each. In fact psql_camp could be replaced with C<with-camp psql>.
+
+=head1 AUTHOR
+
+David Christensen E<lt>ethan@endpoint.comE<gt> and other contributors
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2006-2009 End Point Corporation, http://www.endpoint.com/
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see: http://www.gnu.org/licenses/
+
+=cut

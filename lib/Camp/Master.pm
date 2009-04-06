@@ -69,6 +69,18 @@ our $VERSION = '3.00';
     vcs_type
 );
 
+
+=head1 NAME
+
+Camp::Master - library routines for management of camps
+
+=head1 VERSION
+
+3.00
+
+=cut
+
+
 my (
     @base_edits,
     @edits,
@@ -382,8 +394,6 @@ choice and the default simple happens automatically.
 
 Here's an example of a file:
 
-=over
-
  # The /var/www/html docroot will be symlinked to $camp/htdocs by default,
  # but the user is given the choice to override with a copy.
  ---
@@ -410,8 +420,6 @@ Here's an example of a file:
  always: 1
  allow_errors: 1
  remote_source: ssh
-
-=back
 
 =back
 
@@ -2833,5 +2841,30 @@ mirrors, etc., whenever that user first chooses 'svk' as their version control s
 If you want to make use of SVK with the camp system, please look at the configuration variables section,
 with specific attention paid to I<repo_mirror> and I<repo_svk_path>; these dictate how the SVK repositories
 are created and managed over time.
+
+=head1 BUGS AND LIMITATIONS
+
+This module has tests. It also probably has bugs. It is, after all, software.
+
+=head1 AUTHOR
+
+Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2006-2009 End Point Corporation, http://www.endpoint.com/
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see: http://www.gnu.org/licenses/
 
 =cut

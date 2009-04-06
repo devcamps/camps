@@ -736,7 +736,7 @@ An unfriendly, unportable hard-coded implementation, like this:
  #!/usr/local/bin/perl
  use lib "$ENV{HOME}/camp45/interchange/lib";
  use lib "$ENV{HOME}/camp45/interchange/custom/lib";
- use Test::More (tests => 2010,);
+ use Test::More tests => 2010;
  use Vend::Util;
  use Camp::Catalogs::Foo;
  ...
@@ -744,22 +744,24 @@ An unfriendly, unportable hard-coded implementation, like this:
 can now be implemented in the following easy, portable fashion:
 
  #!/usr/local/bin/perl
- use Camp::Config (use_libs => 1,);
- use Test::More (tests => 2010,);
+ use Camp::Config use_libs => 1;
+ use Test::More tests => 2010;
  use Vend::Util ();
  use Camp::Catalogs::Foo;
  ..
 
 That replaced two lines of code with one, so it's not a huge savings.  But it's
 not nearly as annoying as typing raw paths.  Plus, this will work on any camp
-or on production without requiring a single alteration.  That's the point.
+or on production without requiring a single alteration.  That's the point, as it
+allows you to store the code verbatim in version control and use it in any
+environment without modification.
 
 Note that the 'use_libs => 1' passed to the I<use> call is necessary to tell
 B<Camp::Config> to alter the library search paths at import.  This also
 could be accomplished via:
 
  use Camp::Config;
- use Test::More (tests => 2010,);
+ use Test::More tests => 2010;
  BEGIN {
      Camp::Config->include_paths;
  }

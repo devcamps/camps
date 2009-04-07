@@ -2005,7 +2005,26 @@ sub role_password_cache {
 }
 
 sub role_password_cache_pg {
-    return {};
+    my %opt = @_;
+    my $conf = $opt{config} || config_hash();
+
+    my $pass_file = File::Spec->catfile( $conf->{root}, '.pgpass', );
+    my $pw_cache = {};
+
+    if (-f $pass_file) {
+        open my $IN, '<', $pass_file or die "Can't read $pass_file: $!\n";
+        while (<$IN>) {
+            next if !/^$conf->{db_host}:$conf->{db_port}:/;
+            my ($role,$pw) = (split /:/)[3,4];
+            
+            if ($role && $pw) {
+                $pw_cache->{$role} = $pw;
+            }
+        }
+        close $IN or die "Couldn't close $IN: $!\n";
+    }
+
+    return $pw_cache;
 }
 
 sub role_password_cache_mysql {

@@ -2014,6 +2014,7 @@ sub role_password_cache_pg {
     if (-f $pass_file) {
         open my $IN, '<', $pass_file or die "Can't read $pass_file: $!\n";
         while (<$IN>) {
+            chomp;
             next if !/^$conf->{db_host}:$conf->{db_port}:/;
             my ($role,$pw) = (split /:/)[3,4];
             

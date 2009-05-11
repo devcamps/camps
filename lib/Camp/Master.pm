@@ -598,6 +598,7 @@ sub dbh {
     die "Must specify a DSN and user to access camp database!\n"
         unless defined $dsn and defined $user
     ;
+    local $ENV{PGPORT};
     $dbh = DBI->connect(
         $dsn,
         $user,

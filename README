@@ -18,7 +18,13 @@ Scalar::Util
 YAML::Syck
 
 
-Included library documentation:
+Command documentation:
+
+perldoc bin/refresh-camp
+# and any other bin/ command
+
+
+Library documentation:
 
 perldoc lib/Camp/Master.pm
 perldoc lib/Camp/Config.pm

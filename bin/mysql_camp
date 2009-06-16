@@ -19,6 +19,8 @@ my (
     $usage,
 );
 
+Getopt::Long::Configure( ("pass_through") ); # Allow unrecognized options
+
 GetOptions(
     'database=s'    => \$database,
     'user=s'        => \$user,

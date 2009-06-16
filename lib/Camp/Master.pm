@@ -718,8 +718,6 @@ sub _get_next_camp_number_pg {
 
 sub _get_next_camp_number_mysql {
     my $db = dbh();
-    my ($count) = $db->selectrow_array(q{SELECT COUNT(*) FROM camps WHERE camp_number > 0});
-    return 1 unless $count;
     my ($id) = $db->selectrow_array(<<'SQL');
 SELECT MIN( cn.number )
 FROM camp_numbers cn

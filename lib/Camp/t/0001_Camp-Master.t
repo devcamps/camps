@@ -117,7 +117,7 @@ diag(sprintf('catalog(): %s    $Vend::Cfg->{CatalogName}: %s', $obj->catalog, $V
         'production',
         'run_environment() accessor'
     );
-    
+
     validate_run_environment($obj, 'run_environment() consistent with boolean convenience methods');
 
     cmp_ok(
@@ -125,7 +125,7 @@ diag(sprintf('catalog(): %s    $Vend::Cfg->{CatalogName}: %s', $obj->catalog, $V
         'eq',
         File::Spec->catfile($test_dir, 'catalogs'),
         'base_path()',
-    ); 
+    );
     diag("Exception thrown calling base_path(): $@") if $@;
 
     cmp_ok(
@@ -148,7 +148,7 @@ diag(sprintf('catalog(): %s    $Vend::Cfg->{CatalogName}: %s', $obj->catalog, $V
         'camp_number() undefined',
     );
     diag("Exception thrown calling camp_number(): $@") if $@;
-    
+
     # Validate the various configuration options behavior
     # (just run_environment and related convenience methods for now)
     validate_configuration_possibilities($obj);
@@ -307,14 +307,14 @@ diag(sprintf('catalog(): %s    $Vend::Cfg->{CatalogName}: %s', $obj->catalog, $V
         );
     };
     ok($@, 'unterminated heredoc throws exception');
-    
+
     my $ifdef_file = File::Spec->catfile( $test_dir, 'ifdef.cfg' );
     $obj->_parse_file( undef, File::Spec->catfile( $test_dir, 'global_identity.cfg' ));
     $obj->_parse_file( undef, $ifdef_file );
     $obj->_parse_file( $catalog, File::Spec->catfile( $test_dir, 'catalog_identity.cfg' ));
     $obj->_parse_file( $catalog, $ifdef_file );
     for my $level (undef, $catalog) {
-        my $suff = $level ? '-- catalog' : '-- global'; 
+        my $suff = $level ? '-- catalog' : '-- global';
         ok(
             $obj->variable( $level, 'SIMPLE_IFDEF' ),
             "#ifdef simple $suff",
@@ -337,7 +337,7 @@ diag(sprintf('catalog(): %s    $Vend::Cfg->{CatalogName}: %s', $obj->catalog, $V
             "#ifdef global token $suff",
         );
     }
-    
+
     eval {
         $obj->_parse_file( undef, File::Spec->catfile($test_dir, 'ifdef_nested.cfg') );
     };
@@ -347,7 +347,7 @@ diag(sprintf('catalog(): %s    $Vend::Cfg->{CatalogName}: %s', $obj->catalog, $V
         $obj->_parse_file( undef, File::Spec->catfile($test_dir, 'ifdef_unterminated.cfg') );
     };
     ok( $@, 'unterminated #ifdef throws exception' );
-    
+
     my $newname = 'bogus';
     my $c;
     while ($c++ < 1000 and $obj->known_catalogs($newname)) {
@@ -391,7 +391,7 @@ diag(sprintf('catalog(): %s    $Vend::Cfg->{CatalogName}: %s', $obj->catalog, $V
         {},
         'full_reset() clears object',
     );
-    
+
     my @inc_before = @INC;
     use_ok($subclass, qw(use_libs 1)) or skip("Failed to import $subclass", 3);
     cmp_ok(

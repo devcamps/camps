@@ -173,12 +173,12 @@ SKIP: {
         + 26    # checks in validate_configuration_possibilities()
         + 47    # checks local to this block
     ;
-    
+
     skip(
         "unable to retrieve camp list: $@",
         $test_count,
     ) if $list_err;
-    
+
     skip(
         'Cannot find a camp with all production catalogs and proper environment configuration!',
         $test_count,
@@ -190,7 +190,7 @@ SKIP: {
         $class->per_user_file_layout,
         'per_user_file_layout() true',
     );
-    
+
     cmp_ok(
         $class->camp_number,
         '==',
@@ -204,7 +204,7 @@ SKIP: {
         $owner,
         'user() per-user layout',
     );
-    
+
     cmp_ok(
         $INC[0],
         'eq',
@@ -218,27 +218,27 @@ SKIP: {
         File::Spec->catfile($camp_user->dir, "camp$number", 'interchange/lib'),
         'camp interchange base lib path second in search path',
     );
-    
+
     cmp_ok(
         $class->base_path,
         'eq',
         File::Spec->catfile($camp_user->dir, "camp$number",),
         'base_path() camp',
     );
-    
+
     cmp_ok(
         $class->ic_path,
         'eq',
         File::Spec->catfile($camp_user->dir, "camp$number", 'interchange',),
         'ic_path() camp',
     );
-    
+
     validate_daemon_settings();
 
     validate_vars();
 
     validate_configuration_possibilities('per-user layout');
-    
+
     # Verify proper parsing of things.
     $class->_parse_file(undef, File::Spec->catfile( $path, 'global.cfg' ),);
     my $catalog = $production_catalogs[0];
@@ -448,14 +448,14 @@ SKIP: {
         );
     };
     ok($@, 'unterminated heredoc throws exception');
-    
+
     my $ifdef_file = File::Spec->catfile( $path, 'ifdef.cfg' );
     $class->_parse_file( undef, File::Spec->catfile( $path, 'global_identity.cfg' ));
     $class->_parse_file( undef, $ifdef_file );
     $class->_parse_file( $catalog, File::Spec->catfile( $path, 'catalog_identity.cfg' ));
     $class->_parse_file( $catalog, $ifdef_file );
     for my $level (undef, $catalog) {
-        my $suff = $level ? '-- catalog' : '-- global'; 
+        my $suff = $level ? '-- catalog' : '-- global';
         ok(
             $class->variable( $level, 'SIMPLE_IFDEF' ),
             "#ifdef simple $suff",
@@ -478,7 +478,7 @@ SKIP: {
             "#ifdef global token $suff",
         );
     }
-    
+
     eval {
         $class->_parse_file( undef, File::Spec->catfile($path, 'ifdef_nested.cfg') );
     };
@@ -488,7 +488,7 @@ SKIP: {
         $class->_parse_file( undef, File::Spec->catfile($path, 'ifdef_unterminated.cfg') );
     };
     ok( $@, 'unterminated #ifdef throws exception' );
-    
+
     my $newname = 'bogus';
     my $c;
     while ($c++ < 1000 and $class->known_catalogs($newname)) {
@@ -524,16 +524,16 @@ SKIP: {
         [ 1, 1, 1 ],
         'include directive: glob include',
     );
-    
+
     skip('same user; no check for incorrect user', 2)
         if $> == $orig_euid
     ;
-   
+
     local $SIG{__WARN__} = sub { return; };
     reset_package();
     $> = $orig_euid;
     ok(!eval("use $class (use_libs => 1);"), 'Exception thrown for incorrect user',);
-    
+
     skip('ran as interch; cannot do no-environment exception check', 1)
         if $> == $ic_uid
     ;
@@ -674,7 +674,7 @@ sub validate_configuration_possibilities {
                 );
             }
         }
-            
+
     }
 }
 

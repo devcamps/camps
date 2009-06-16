@@ -24,7 +24,7 @@ sub adhoc_base_path {
 
 sub _validate_adhoc_user {
     my $invocant = shift;
-    return $invocant->_setting_set('user', getpwuid($>));   
+    return $invocant->_setting_set('user', getpwuid($>));
 }
 
 1;

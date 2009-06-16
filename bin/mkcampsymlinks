@@ -19,7 +19,7 @@ foreach my $camp (glob "$ENV{HOME}/camp*") {
     my $link_name = "$ENV{HOME}/$type: $comment";
 
     print "$link_name\n";
-    
+
     symlink($camp,$link_name);
 };
 

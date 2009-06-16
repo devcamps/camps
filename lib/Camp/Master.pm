@@ -2018,7 +2018,7 @@ sub role_password_cache_pg {
             chomp;
             next if !/^$conf->{db_host}:$conf->{db_port}:/;
             my ($role,$pw) = (split /:/)[3,4];
-            
+
             if ($role && $pw) {
                 $pw_cache->{$role} = $pw;
             }

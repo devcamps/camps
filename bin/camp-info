@@ -42,7 +42,7 @@ my %set_synonyms = (
 
 while (my ($attribute, $type) = each %queryable_attributes) {
     my @gets = $attribute;
-    
+
     # construct a list of aliases
     while (my ($alias, $aliased_attribute) = each %attribute_aliases) {
         push @gets, $alias if $aliased_attribute eq $attribute;
@@ -53,10 +53,10 @@ while (my ($attribute, $type) = each %queryable_attributes) {
     for ($set_synonyms{$attribute}) {
         push @sets, $_ if $_;
     }
-    
+
     my $get_clause = join "|", @gets;
     my $set_clause = join "|", @sets;
-    
+
     push @attribute_list, $get_clause     if $type =~ /get/;
     push @attribute_list, "$set_clause=s" if $type =~ /set/;
 }

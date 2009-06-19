@@ -154,6 +154,56 @@ mkcamp - create a new camp
 
 3.00
 
+=head1 SYNOPSIS
+
+=over
+
+=item I<mkcamp> --comment="<comments>" --type=<type> [--number=<camp #>] [--skipcamp] [--skipdb] [--vcs=<svn|svk|git>] [--help]
+
+=back
+
+=head1 DESCRIPTION
+
+Creates a new camp and registers it in the camp database.
+
+A comment explaining the use of the new camp is required. This should likely be enclosed in quotes to work with your shell.
+
+Unless there is only one camp type available, the type must be specified as well.
+ 
+=head1 OPTIONS
+
+=over
+
+=item --comment="<comments>"
+
+Required comment explaining the purpose of this new camp. 
+
+=item --type=<type>
+
+The type of camp to be made; if there is only one type, mkcamp will set the --type automatically.
+
+=item --number=<camp number>
+
+Specify the camp number to be made instead of automatically determining it. Required if --skipcamp is used.
+
+=item --skipcamp
+
+Do not add this camp to the database (arguments of --comment will not be passed if this option is used). Requires --number to be set.
+
+=item --skipdb
+
+Skip database creation.
+
+=item --vcs=<svn|svk|git>
+
+Optionally specify version control system to use for working copy checkout. The camp type requested should provide a default, and determines which options actually work. This is normally used only to make an svk camp when svn is the default.
+
+=item --help
+
+Displays the help menu and list of camp types based on Camp Master Database configuration.
+
+=back
+
 =head1 AUTHOR
 
 Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors

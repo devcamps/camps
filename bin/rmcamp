@@ -47,6 +47,16 @@ rmcamp - remove a camp
 
 3.00
 
+=head1 SYNOPSIS
+
+ rmcamp --number=<camp number>
+
+=head1 DESCRIPTION
+
+The specified camp's services (i.e. Apache, PostgreSQL/MySQL, Rails/Interchange) are stopped, the camp is unregistered from the master camp database, and the camp's files are deleted from the filesystem. If SVK is used, the workspace for the camp will be cleared.
+
+To safely remove a camp, please check for changes before using C<rmcamp>. For your code, you can use C<git status>. If you've made database schema changes, you need to make sure that you have created appropriate migrations files and committed them. For actual data changes, you may need to dump and load as appropriate (or write a C<rake> task to handle it).
+
 =head1 AUTHOR
 
 Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors

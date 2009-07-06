@@ -67,7 +67,7 @@ psql_camp for each. In fact psql_camp could be replaced with C<with-camp psql>.
 
 =head1 AUTHOR
 
-David Christensen E<lt>ethan@endpoint.comE<gt> and other contributors
+David Christensen E<lt>david@endpoint.comE<gt> and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 

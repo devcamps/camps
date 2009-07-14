@@ -1461,13 +1461,21 @@ sub git_clone_options {
 
 sub git_repository {
     my $hash = config_hash();
-    defined($_) && /\S/ && return File::Spec->catfile( type_path(), $_ )
+    defined($_) && /\S/ && return is_git_remote_repo($_) ? $_ : File::Spec->catfile( type_path(), $_ )
         for (
             $hash->{repo_path_git},
             $hash->{repo_path},
             'repo.git',
         );
     return;
+}
+
+sub is_git_remote_repo {
+    local $_ = shift;
+
+    return m{^\w+://}       # remote protocol specification; i.e., ssh://
+      ||   m{^\S+?@\S+?:.}  # user@host: default ssh-style
+    ;
 }
 
 sub svn_repository {

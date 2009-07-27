@@ -2124,7 +2124,7 @@ sub _prepare_camp_database_client_settings_pg {
     }
     my $pw_cache      = role_password_cache_pg();
     my $postgres_pass = $conf->{db_pg_postgres_pass} = $pw_cache->{postgres} || generate_nice_password();
-    my $pass_file_tmp = File::Temp->new( UNLINK => 0, DIR => $conf->{path} );
+    my $pass_file_tmp = File::Temp->new( UNLINK => 0, DIR => $conf->{root} );
     $pass_file_tmp->print( "$conf->{db_host}:$conf->{db_port}:*:postgres:$postgres_pass\n" );
     for my $role (@$roles) {
         my $pass = role_password( $role );

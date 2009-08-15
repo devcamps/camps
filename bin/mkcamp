@@ -21,6 +21,7 @@ GetOptions(
         replace!
         skipdb
         skipcamp
+        skipvcs
         help
         type=s
         vcs=s
@@ -49,6 +50,8 @@ Options:
 --skipcamp  Do not add this camp to the database. Requires --number.
 
 --skipdb    Skip database creation.
+
+--skipvcs   Skip version control clone/checkout.
 
 --vcs       Specify version control system to use for working copy checkout.
             Options are "svn", "svk", and "git".
@@ -97,13 +100,13 @@ my $conf = config_hash( $opt{number} );
 print "Configuration hash:\n", Dumper($conf);
 
 # Add to camp database
-register_camp($opt{comment}) unless ($opt{skipcamp});
+register_camp($opt{comment}) unless $opt{skipcamp};
 
 # Check out bulk of files from version control repository
-vcs_checkout($opt{replace});
+vcs_checkout($opt{replace}) unless $opt{skipcvs};
 
 # Must prepare database before installing templates; do so now.
-prepare_database( $opt{replace} ) unless $opt{skipdb};
+prepare_database($opt{replace}) unless $opt{skipdb};
 
 # Perform simple copy/symlink operations
 process_copy_paths();

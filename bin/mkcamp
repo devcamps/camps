@@ -103,7 +103,7 @@ print "Configuration hash:\n", Dumper($conf);
 register_camp($opt{comment}) unless $opt{skipcamp};
 
 # Check out bulk of files from version control repository
-vcs_checkout($opt{replace}) unless $opt{skipcvs};
+vcs_checkout($opt{replace}) unless $opt{skipvcs};
 
 # Must prepare database before installing templates; do so now.
 prepare_database($opt{replace}) unless $opt{skipdb};

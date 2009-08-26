@@ -15,10 +15,31 @@ my @camps = Camp::Master::camp_list(all => 1);
 die "No camps to manage!\n" unless @camps;
 
 for my $camp (@camps) {
-    print "\n\n*** Working on camp$camp->{camp_number} for user $camp->{username} ***\n\n";
+    # validate user before allowing su to it
+    my $username = $camp->{username};
+    my $uid = getpwnam($username);
+
+    # don't allow someone to escalate to root or a system user
+    unless ($uid and $uid >= 500) {
+        die qq{Refusing to su to user "$username" with prohibited uid\n};
+    }
+
+    # username from system must match, to avoid any dirty tricks
+    my $username_passwd = getpwuid($uid);
+    unless ($username eq $username_passwd) {
+        die qq{Refusing to su to user "$username" which doesn't match passwd entry "$username_passwd"\n};
+    }
+
+    # ensure user is member of camp group
+    my @groups = split / /, (getgrnam('camp'))[3];
+    unless (grep { $_ eq $username } @groups) {
+        die "Refusing to su to user $username which is not a member of the camp group\n";
+    }
+
+    print "\n\n*** Working on camp$camp->{camp_number} for user $username ***\n\n";
 
     # avoid shell quoting issues by separating args
-    my @cmd = ('su', '-', $camp->{username}, '-c', "re @ARGV $camp->{camp_number}");
+    my @cmd = ('su', '-', $username, '-c', "~camp/bin/re @ARGV $camp->{camp_number}");
 
     # pretty-print command
     print join(' ', map { /\s/ ? qq{"$_"} : $_ } @cmd), "\n";
@@ -58,7 +79,29 @@ This command operates on each camp in numerical order, switching to the
 user who owns the camp using I<su>, then invoking the I<re> command with
 any arguments provided.
 
-It must be run as root. It depends on I<re> being in each user's PATH.
+It must be run as root.
+
+It makes the following assumptions about the system:
+
+=over 4
+
+=item
+
+The camp system user is I<camp> and I<re> lives at ~camp/bin/re
+
+=item
+
+Developer users will have uid 500 or higher
+
+=item
+
+Developer users will be members of the I<camp> group
+
+=item
+
+Developer users will reverse-map to themselves (can't use an alias with the same uid as a primary user)
+
+=back
 
 =head1 NOTES
 

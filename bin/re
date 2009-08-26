@@ -108,7 +108,7 @@ exit 0;
 
 =head1 NAME
 
-re - restart one or more camp services
+re - start/stop/restart one or more camp services
 
 =head1 VERSION
 

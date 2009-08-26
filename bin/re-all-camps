@@ -1,0 +1,96 @@
+#!/usr/local/bin/perl
+
+use strict;
+use warnings;
+use lib '/home/camp/lib';
+use Camp::Master;
+
+*STDOUT->autoflush(1);
+*STDERR->autoflush(1);
+
+die "This command must be run as root.\n" if $> != 0;
+
+my @camps = Camp::Master::camp_list(all => 1);
+
+die "No camps to manage!\n" unless @camps;
+
+for my $camp (@camps) {
+    print "\n\n*** Working on camp$camp->{camp_number} for user $camp->{username} ***\n\n";
+
+    # avoid shell quoting issues by separating args
+    my @cmd = ('su', '-', $camp->{username}, '-c', "re @ARGV $camp->{camp_number}");
+
+    # pretty-print command
+    print join(' ', map { /\s/ ? qq{"$_"} : $_ } @cmd), "\n";
+
+    system(@cmd) == 0 and next;
+    if ($? == -1) {
+        die "failed to execute: $!\n";
+    }
+    elsif ($? & 127) {
+        die sprintf("child died with signal %d\n", ($? & 127));
+    }
+    elsif ($? >> 8 == 255) {
+        die "Aborting.\n";
+    }
+    else {
+        # move on to next camp when the camp failed to start up due to its own problems
+        warn sprintf("child exited with value %d\n", ($? >> 8));
+    }
+}
+
+exit;
+
+
+=pod
+
+=head1 NAME
+
+re-all-camps - start/stop/restart all camps
+
+=head1 VERSION
+
+3.00
+
+=head1 DESCRIPTION
+
+This command operates on each camp in numerical order, switching to the
+user who owns the camp using I<su>, then invoking the I<re> command with
+any arguments provided.
+
+It must be run as root. It depends on I<re> being in each user's PATH.
+
+=head1 NOTES
+
+The name is a little cumbersome, but this isn't meant to be oft-used. Its
+primary purpose is to start all camps on a system after a reboot.
+
+This would be more elegantly implemented as an option to I<re>,
+then executing commands from Camp::Master as the appropriate user, but
+doing so would require an overhaul of the internals. Simply setting the
+effective user ID within I<re> doesn't set up the environment properly
+as needed for starting the services as that user, so this uses I<su> to
+spawn a subshell for each I<re> call.
+
+=head1 AUTHOR
+
+Jon Jensen E<lt>jon@endpoint.comE<gt> and other contributors
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2009 End Point Corporation, http://www.endpoint.com/
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see: http://www.gnu.org/licenses/
+
+=cut

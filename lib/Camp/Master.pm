@@ -1241,6 +1241,28 @@ meaning that the effective default behavior is invoking git-clone without option
 Git is efficient in its use of disk space, but by using the various options like local, shared,
 or reference can potentially be even more efficient and speedy.
 
+=item git_branch
+
+Specifies a branch to track and checkout after cloning.  Use this in the case that your Git
+repository's active branch differs from the branch the camp type needs to work with.  This would
+likely be the case if you're using a single master Git repository to track several lines of
+development; one camp type would work with the default branch "master", while other camp types
+would need to specify alternate branches.
+
+This assumes that you're using a remote name of "origin".  Since I<git_clone_options> allows you
+to specify a different name for your clone, I<git_branch> introduces some extra semantics: if
+the value of I<git_branch> contains a forward slash ("/"), the word characters preceding the first
+slash are treated as the remote name.
+
+If you use I<git_clone_options> "-o foo" to specify a remote name of "foo" rather than "origin",
+you can have your camp type check out branch "bar" via I<git_branch> of "foo/bar".  However, if
+you're using the default clone remote name of "origin", then I<git_branch> "bar" would suffice to
+checkout branch "bar".
+
+This also means that if the desired branch has forward slashes in the name, you'll need to include
+the remote name as the first portion of your I<git_branch> value.  So, if you want a branch named
+"releases/1.1", you would need a I<git_branch> value of "origin/releases/1.1".
+
 =item repo_svk_local
 
 Specifies the SVK local working path used per camp; when creating a new camp using the 'svk'
@@ -1470,6 +1492,12 @@ sub git_repository {
     return;
 }
 
+sub git_branch {
+    my $branch = config_hash->{git_branch};
+    $branch = '' unless defined($branch) and $branch =~ /\S/;
+    return $branch;
+}
+
 sub is_git_remote_repo {
     local $_ = shift;
 
@@ -1623,6 +1651,20 @@ sub vcs_checkout {
                 $conf->{path},
             ],
         );
+        if (my $branch = git_branch()) {
+            my $repo = 'origin';
+            if ($branch =~ s!^(\w+)/(\w.+)$!$2!) {
+                $repo = $1;
+            }
+
+            push @cmds, [
+                '(cd %s && git checkout --track -b %s %s/%s)',
+                $conf->{path},
+                $branch,
+                $repo,
+                $branch,
+            ];
+        }
     }
     else {
         die "Unknown version control system: $vcs\n";

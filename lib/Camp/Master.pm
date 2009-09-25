@@ -649,6 +649,19 @@ sub get_camp_info {
     return $row;
 }
 
+sub get_all_camp_info {
+    my $username = shift;
+    my $dbh = dbh();
+    my $sth = $dbh->prepare('SELECT camp_number,camp_type,create_date,comment FROM camps WHERE username = ?');
+    my $rc  = $sth->execute($username);
+    my $out = "Camp #\tCamp Type\tCamp Creation Date\t\tComment\n";
+    while ( my $row = $sth->fetchrow_hashref() ) {
+        $out .= "   $row->{camp_number}\t$row->{camp_type}\t\t$row->{create_date}\t\t$row->{comment}\n";
+    }
+    $sth->finish();
+    return $out;
+}
+
 sub set_camp_comment {
     my ($number, $comment) = @_;
     dbh()->do('UPDATE camps SET comment = ? WHERE camp_number = ?', undef, $comment, $number);

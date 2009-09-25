@@ -68,6 +68,7 @@ If the camp number is not specified, it may be inferred from the CAMP
 environment variable or the current working directory.
 
 Options:
+--all, -a          Show the camp information for all camps for this user.
 --comment          Show the comment for the camp.
 --set-comment, -m  Set the comment for the camp.
 --number           Show the camp number for the camp.
@@ -85,6 +86,7 @@ GetOptions(
     "quiet|q",
     "no-newline|n",
     "separator|sep=s",
+    "all|a",
     @attribute_list,
 ) or die $USAGE;
 
@@ -99,6 +101,13 @@ my $camp_number = resolve_camp_number(shift);
 if (!defined $camp_number) {
     exit 1 if $opt{quiet};
     die "$0: couldn't determine camp; specify in command line or CAMP environment variable\n";
+}
+
+if ($opt{all}) {
+    my $username = getpwuid($<);
+    my $info = Camp::Master::get_all_camp_info( $username );
+    print $info;
+    exit;
 }
 
 my $info = Camp::Master::get_camp_info( $camp_number );

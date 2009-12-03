@@ -1912,6 +1912,7 @@ necessary, and vary in a controlled way between environments by virtue of being 
 =cut
 
 sub install_templates {
+    parse_roles() unless defined $roles;
     my $conf = config_hash();
     my $template_path = File::Spec->catfile(type_path(), 'etc');
     local $/;
@@ -1956,12 +1957,12 @@ sub role_password {
         unless defined $role_hash
     ;
     if (! $role_hash->{password}) {
-        my $config = config_hash();
-        $config->{"db_role_${role}_pass"}
+        my $conf = config_hash();
+        $conf->{"db_role_${role}_pass"}
             = $role_hash->{password}
             = generate_nice_password();
     }
-    return $role_hash->{password} ||= generate_nice_password();
+    return $role_hash->{password};
 }
 
 sub role_sql {
@@ -1975,6 +1976,7 @@ sub role_sql {
 }
 
 sub parse_roles {
+    my $conf = config_hash();
     $roles = {};
     my $password_cache = role_password_cache();
     my $path = roles_path();
@@ -1989,7 +1991,9 @@ sub parse_roles {
         };
 
         if (my $pw = $password_cache->{$role}) {
-            $roles->{$role}->{password} = $pw;
+            $conf->{"db_role_${role}_pass"}
+                = $roles->{$role}->{password}
+                = $pw;
         }
         close $ROLE or die "Error closing $path: $!\n";
     }

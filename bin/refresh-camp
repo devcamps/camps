@@ -52,16 +52,16 @@ if (!$showpod) {
         $operation++;
     }
 
-    if ($opt{config}) {
-        # Run install_templates to rebuild templated config files and install them
-        install_templates();
-        $operation++;
-    }
-
     if ($opt{db}) {
         # Run prepare_database with the force flag so it'll overwrite the existing one.
         prepare_database(1);
         $operation++;
+    }
+
+    if ($opt{config}) {
+        # Run install_templates to rebuild templated config files and install them
+        install_templates();
+        $operation++;    
     }
 
     if ($opt{files}) {

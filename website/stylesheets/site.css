@@ -1,0 +1,26 @@
+body { background: #b6d1c3; margin: 0px; font-size: 14px; font-family: Verdana, Helvetica, sans-serif; color: #404040; }
+a { text-decoration: none; outline: none; color: #195065; font-weight: bold; }
+a:hover { text-decoration: underline; }
+img { border: none; }
+p, li { line-height: 1.6em; }
+h1, h2, h3, h4, h5 { font-weight: normal; }
+td { vertical-align: top; }
+div.wrapper { width: 965px; margin: 0px auto; clear: both; }
+h1 { font-size: 21px; }
+div#content { z-index: 50; width: 100%; padding: 20px 0px 50px 0px; }
+div#header { background: #FFF url(/images/trinkets.png) 0px -121px repeat-x; height: 41px; z-index: 9; }
+  a#logo { float: left; margin: 1px 10px 0px 0px; display: block; width: 300px; opacity: 0.9; }
+    a#logo img { width: 300px; height: 100px; }
+  ul#main_nav { list-style-type: none; margin: 0px; }
+    ul#main_nav li { float: left; font-size: 13px; height: 41px; }
+    ul#main_nav li:hover { background: #FFF; }
+  ul#main_nav a { text-decoration: none; color: #404040; display: block; padding: 9px 22px 7px 22px; font-size: 16px; font-weight: normal; }
+  ul#main_nav a:hover { text-decoration: none; }
+div#main { background: #FFF; }
+div#footer_container { background: #fbdda7 url(/images/trinkets.png) repeat-x; clear: both; color: #404040; font-size: 0.95em; }
+div#footer { padding: 15px 0px; }
+  div#footer a { font-weight: normal; }
+  div#footer p { margin: 0px; padding: 0px; }
+  div#footer td { width: 23%; }
+    td.links { width: 17%; text-align: right; }
+div.docs h1 { font-size: 15px; }

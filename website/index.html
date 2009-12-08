@@ -1,88 +1,12 @@
-<html>
-<head>
-	<link href="/camp.css" rel="stylesheet" type="text/css" />
-	<title>Development Camps</title>
-</head>
-<body style="margin: 5%">
+<!--#set var="title" value="DevCamps.org | Development Camps, Development and Staging Environments" -->
+<!--#include virtual="/header.html" -->
 
-<h1>
-<img src="devcamps_logo.png" width="150" height="28" alt="DevCamps logo" align="right" />
-DevCamps - Development Camps
-</h1>
-
-<h2>Overview</h2>
+<h1>Welcome to DevCamps.org</h1>
 
 <p>DevCamps are a software system and conventions for making automated development and staging environments called "camps".</p>
 
 <p>Focused on web applications, camps make it easy to keep development environments up to date, use version control (including in production if desired), and coordinate multiple simultaneous projects and developers.</p>
 
-<p>DevCamps were developed at <a href="http://www.endpoint.com/">End Point</a> and are in extensive use on several dozen sites. Camps adapt well to various workflows.</p>
+<p>DevCamps were developed at <a href="http://www.endpoint.com"><img src="http://www.endpoint.com/images/end_point.png" alt="End Point" /></a> and are in extensive use on several dozen sites. Camps adapt well to various workflows.</p>
 
-<h2>Documentation</h2>
-
-<ul>
-<li><a href="camps-presentation-20080829/">Camps: Better Development Environments</a> - presentation slides from a presentation &amp; demonstration Jon Jensen gave about camps at <a href="http://2008.utosc.com/">UTOSC 2008</a></li>
-<li><a href="http://www.spreecamps.com/camps">SpreeCamps.com DevCamps documentation</a> - tutorial and FAQ specific to the SpreeCamps environment, but of general use as well</li>
-
-<li>Commands:
-<ul>
-	<li><a href="doc/bin/camp-info.html">camp-info</a></li>
-	<li><a href="doc/bin/camp-lint.html">camp-lint</a></li>
-	<li><a href="doc/bin/mkcamp.html">mkcamp</a></li>
-	<li><a href="doc/bin/mkcampsymlinks.html">mkcampsymlinks</a></li>
-	<li><a href="doc/bin/mysql_camp.html">mysql_camp</a></li>
-	<li><a href="doc/bin/psql_camp.html">psql_camp</a></li>
-	<li><a href="doc/bin/refresh-camp.html">refresh-camp</a></li>
-	<li><a href="doc/bin/re.html">re</a></li>
-	<li><a href="doc/bin/rmcamp.html">rmcamp</a></li>
-	<li><a href="doc/bin/with-camp.html">with-camp</a></li>
-</ul>
-</li>
-
-<li>Configuration, API, and internals:
-<ul>
-	<li><a href="doc/lib/Camp/Config.html">Camp::Config</a></li>
-	<li><a href="doc/lib/Camp/Master.html">Camp::Master</a></li>
-</ul>
-</li>
-
-</ul>
-
-<h2>Mailing lists</h2>
-
-<ul>
-<li>User and developer discussion: <a href="https://mail.endcrypt.com/mailman/listinfo/camps-users">camps-users</a></li>
-<li>Source code commit notifications: <a href="https://mail.endcrypt.com/mailman/listinfo/camps-commits">camps-commits</a></li>
-</ul>
-
-<h2>Real-time chat</h2>
-
-<p>We meet in IRC channel <strong>#camps</strong> on <strong>freenode</strong> (chat.freenode.net port 6667).</p>
-
-<h2>Source code</h2>
-
-<p>The source code is maintained in a <a href="http://git-scm.com/">Git</a> repository, <a href="/cgi-bin/gitweb">browsable via gitweb</a>. To clone a copy of the repository:</p>
-
-<pre>
-git clone http://git.devcamps.org/camps.git
-</pre>
-
-<p>We have a <a href="http://github.com/devcamps/camps/tree/master">GitHub mirror</a> of the repository as well. If you have any changes to propose, please fork the repository, push your changes, and tell us about them on the mailing list.</p>
-
-<p>You can see an overview report about the code on our <a href="https://www.ohloh.net/p/devcamps">DevCamps Ohloh project page</a>.</p>
-
-<h2>Ticket tracking</h2>
-
-<p>New feature requests and bug reports are handled in <a href="https://rt.endpoint.com/">End Point's RT</a> in the "Camps" queue, currently only accessible by users with accounts.</p>
-
-<script type="text/javascript">
-var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-</script>
-<script type="text/javascript">
-try {
-var pageTracker = _gat._getTracker("UA-525312-11");
-pageTracker._trackPageview();
-} catch(err) {}</script>
-</body>
-</html>
+<!--#include virtual="/footer.html" -->

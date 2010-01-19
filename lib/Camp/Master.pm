@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Cwd;
 use IO::Handle;
+use File::Basename ();
 use File::Path;
 use File::pushd;
 use File::Temp ();
@@ -1698,6 +1699,10 @@ sub vcs_checkout {
                 $branch,
             ];
         }
+        push @cmds, [
+            'cd %s && git submodule init; git submodule update',
+            $conf->{path},
+        ];
     }
     else {
         die "Unknown version control system: $vcs\n";
@@ -1747,22 +1752,29 @@ sub vcs_local_refresh {
 }
 
 sub vcs_local_revert {
-    my $conf = config_hash();
-
     # Make file paths relative, since that's what the version control systems expect
-    my @files = map { File::Spec->abs2rel($_, $conf->{path}) } @_;
-
+    my %files_by_path;
+    for my $file (@_) {
+        my ($filename, $path) = File::Basename::fileparse($file);
+        push @{ $files_by_path{$path} }, $filename;
+    }
+    
     my $vcs_type = vcs_type();
     my %map = (
         svn => 'svn revert %s',
         svk => 'svk revert %s',
         git => 'git checkout %s',
-    );
+    );  
     my $cmd = $map{$vcs_type} or die "No local revert command available for VCS type '$vcs_type'.\n";
-
-    my $dir = pushd("$conf->{path}") or die "Couldn't chdir $conf->{path}: $!\n";
-    my $args = join ' ', @files;
-    return do_system(sprintf($cmd, $args));
+    
+    while (my ($path, $files) = each %files_by_path) {
+        my $dir = pushd($path) or die "Couldn't chdir $path: $!\n";
+        my $args = join ' ', @$files;
+    
+        do_system(sprintf($cmd, $args));
+    }   
+    
+    return;
 }
 
 sub prepare_ic {

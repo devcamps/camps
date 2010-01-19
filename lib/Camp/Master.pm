@@ -1139,6 +1139,26 @@ The default user to use when connecting to your database via its respective camp
 wrapper (I<psql_camp> or I<mysql_camp>).  Also determines the user used for I<db_source_scripts>
 import on MySQL.
 
+=item db_pg_ssl_active (I<postgres only>)
+
+Boolean used to indicate that Postgres instance has SSL activated and therefore a certificate should be generated. Default: off.
+
+=item db_pg_ssl_C (I<postgres only>)
+
+The country to use for your camp's Postgres SSL certificate (defaults to value of ssl_C).
+
+=item db_pg_ssl_ST (I<postgres only>)
+
+The statename to use for your camp's Postgres SSL certificate (defaults to value of ssl_ST).
+
+=item db_pg_ssl_L (I<postgres only>)
+
+The locality to use for your camp's Postgres SSL certificate (defaults to value of ssl_L).
+
+=item db_pg_ssl_O (I<postgres only>)
+
+The organization name to use for your camp's Postgres SSL certificate (defaults to value of ssl_O).
+
 =item ssl_C
 
 The country to use for your camp's SSL certificate (defaults to US).
@@ -2305,6 +2325,45 @@ END
     }
 
     unlink $tmp or die "Error unlinking $tmp: $!\n";
+
+    # Create SSL certificate
+    if (defined $conf->{db_pg_ssl_active} and $conf->{db_pg_ssl_active}) {
+        my $crt_path = File::Spec->catfile( $conf->{db_data}, 'server.crt' );
+        my $key_path = File::Spec->catfile( $conf->{db_data}, 'server.key' );
+
+        my $ssl_C  = $conf->{db_pg_ssl_C}  || $conf->{ssl_C};
+        my $ssl_ST = $conf->{db_pg_ssl_ST} || $conf->{ssl_ST};
+        my $ssl_L  = $conf->{db_pg_ssl_L}  || $conf->{ssl_L};
+        my $ssl_O  = $conf->{db_pg_ssl_O}  || $conf->{ssl_O};
+
+        my $tmpfile = File::Temp->new( DIR => camp_user_tmpdir(), UNLINK => 0 );
+        $tmpfile->print(<<EOF);
+[ req ]
+distinguished_name = req_distinguished_name
+attributes         = req_attributes
+prompt             = no
+
+[ req_distinguished_name ]
+C                 = $ssl_C
+ST                = $ssl_ST
+L                 = $ssl_L
+O                 = $ssl_O
+OU                = $conf->{name} for $conf->{admin_name}
+CN                = $conf->{hostname}
+emailAddress      = $conf->{admin_email}
+
+[ req_attributes ]
+challengePassword =
+EOF
+        $tmpfile->close;
+
+        do_system("openssl genrsa -out $key_path");
+        do_system("chmod 600 $key_path");
+        do_system("openssl req -new -x509 -days 3650 -key $key_path -out $crt_path -config $tmpfile");
+
+        unlink($tmpfile) or die "Error unlinking $tmpfile: $!\n";
+    }
+
     return 1;
 }
 

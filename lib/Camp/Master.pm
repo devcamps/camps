@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Cwd;
 use IO::Handle;
+use Fcntl qw(:mode);
 use File::Basename ();
 use File::Path;
 use File::pushd;
@@ -1700,7 +1701,7 @@ sub vcs_checkout {
             ];
         }
         push @cmds, [
-            'cd %s && git submodule init; git submodule update',
+            'cd %s && git submodule init && git submodule update',
             $conf->{path},
         ];
     }
@@ -1784,7 +1785,12 @@ sub prepare_ic {
 
     # Set the main server script as executable.
     $file = "$conf->{icroot}/bin/interchange";
-    -f $file and do_system("chmod +x $file");
+    if (-f $file) {
+        my $current_mode = (stat $file)[2] & 07777;
+        my $new_mode     = $current_mode|S_IXUSR|S_IXGRP|S_IXOTH;
+
+        chmod $new_mode, $file or die sprintf "Can't change permissions on %s: %lo\n", $file, $new_mode;
+    }
 
     # Prepare the CGI linker.
     $file = "$conf->{icroot}/bin/compile_link";
@@ -2370,7 +2376,9 @@ EOF
         $tmpfile->close;
 
         do_system("openssl genrsa -out $key_path");
-        do_system("chmod 600 $key_path");
+
+        chmod 0600, $key_path or die "Can't change permissions on $key_path: 0600\n";
+
         do_system("openssl req -new -x509 -days 3650 -key $key_path -out $crt_path -config $tmpfile");
 
         unlink($tmpfile) or die "Error unlinking $tmpfile: $!\n";

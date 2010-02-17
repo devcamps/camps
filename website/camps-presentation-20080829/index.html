@@ -1,0 +1,497 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" 
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<title>Camps: Better Development Environments</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<!-- metadata -->
+<meta name="generator" content="S5" />
+<meta name="version" content="S5 1.1" />
+<meta name="presdate" content="20080829" />
+<meta name="author" content="Jon Jensen" />
+<meta name="company" content="End Point Corporation" />
+<!-- configuration parameters -->
+<meta name="defaultView" content="slideshow" />
+<meta name="controlVis" content="hidden" />
+<!-- style sheet links -->
+<link rel="stylesheet" href="ui/default/slides.css" type="text/css" media="projection" id="slideProj" />
+<link rel="stylesheet" href="ui/default/outline.css" type="text/css" media="screen" id="outlineStyle" />
+<link rel="stylesheet" href="ui/default/print.css" type="text/css" media="print" id="slidePrint" />
+<link rel="stylesheet" href="ui/default/opera.css" type="text/css" media="projection" id="operaFix" />
+<!-- S5 JS -->
+<script src="ui/default/slides.js" type="text/javascript"></script>
+</head>
+<body>
+
+<div class="layout">
+<div id="controls"><!-- DO NOT EDIT --></div>
+<div id="currentSlide"><!-- DO NOT EDIT --></div>
+<div id="header"></div>
+<div id="footer">
+<h1>Utah Open Source Conference, 29 August 2008</h1>
+<h2>Camps: Better Development Environments</h2>
+</div>
+</div>
+
+
+<div class="presentation">
+
+
+<div class="slide">
+<h1>Camps</h1>
+<h2>Better Development Environments</h2>
+<h3>Jon Jensen</h3>
+<h4>End Point Corporation</h4>
+</div>
+
+
+<div class="slide">
+	<h1>What is this about?</h1>
+	<ul>
+		<li>Web development in particular &mdash; but really all development</li>
+		<li>Large-scale development &mdash; and small projects often end up large</li>
+		<li>“Camps” &mdash; but not just this system</li>
+		<li>An internal project &mdash; that’s gone open source</li>
+	</ul>
+	<div class="handout">
+		<ul>
+			<li>I work primarily with web applications in ecommerce, but many of the lessons I’ll talk about apply to software development in general, not just web development.</li>
+			<li>The only true small-scale development is a single developer, working on a single project, that starts and stays small, and progresses fairly linearly. Anything more than this &mdash; two developers, one developer with a few simultaneous projects on the same codebase, a project that becomes important to its users, a project that grows beyond a weekend hack &mdash; needs the same infrastructure as any large-scale project. But usually doesn’t get it.</li>
+			<li>I’m focusing on camps, which is a particular development system we created at End Point, but many lessons can be applied piecewise in any development environment.</li>
+			<li>I think camps are an example of the way open source best works: solving a real problem, finding that the solution applies in another place, then another, then generalizing it and releasing it for others to use. Camps are used extensively by End Point and our clients, and are fairly mature, but the camps open source project is still young.</li>
+		</ul>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>HOW<span style="color: red">NOT</span>TO start</h1>
+	<ol>
+		<li>Set up your new server or hosting account</li>
+		<li>Start writing code</li>
+		<li>Enjoy positive user feedback</li>
+		<li>Step on other developers’ toes but figure you’ll deal with version control and so on “when we have time”</li>
+		<li>Finish development and go live</li>
+		<li>Hack bugfixes and new features directly in production</li>
+		<li><strike>Profit!?1!@1</strike> Suffer!</li>
+	</ol>
+	<div class="handout">
+		<p>Developers need a place to work. The easiest place to do this is by editing code on the production site. When you’re working on a new site, there is no production site yet, so what you’re working in is clearly the <em>development environment</em>. When it’s time for that to go live, everyone’s in a hurry, things are all set up, so you switch it live. From this moment on, where do you develop? It’s of course very dangerous to keep developing right there, but it solves the immediate problems, everyone’s busy, and you make comrpomises.</p>
+		<p>Frameworks that build in support for development and testing, such as Ruby on Rails, are a huge step forward and greatly reduce this problem if their conventions are followed, but they also introduce some new problems of their own which I’ll cover in a few minutes.</p>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>An exaggeration?</h1>
+	<p>Perhaps. But there’s still plenty of that around.</p>
+	<p>Modern web development frameworks provide some good conventions and defaults, and make it hard to do as badly as the HOW<span style="color: red">NOT</span>TO describes.</p>
+	<p>However, while it may seem that the problem of development environments is solved in some modern frameworks, it’s not entirely.</p>
+</div>
+
+
+<div class="slide">
+	<h1>What are camps?</h1>
+	<p>Camps: A system and set of conventions to make it easy to manage many parallel development and staging environments, and keep them synchronized with the production environment.</p>
+	<p>“Camps” is just a word, not an acronym.</p>
+	<p>Camps leverage popular open source tools and build upon them (for example, version control systems).</p>
+</div>
+
+
+<div class="slide">
+	<h1>A camps demo: Spree (Rails)</h1>
+	<p>Spree is a new open source Rails shopping cart.</p>
+	<p>I’m using it here as an example of a simple application running in camps.</p>
+	<p>See <a href="http://www.endpoint.com/services/spree">End Point Spree Development/</a> for more details about End Point's work on Spree.</p>
+</div>
+
+
+<div class="slide">
+	<h1>About the demo server</h1>
+	<ul>
+		<li>CentOS 5 x86_64 virtual machine</li>
+		<li>Running the public camp system code</li>
+		<li>Apache + mongrel_cluster + Rails + Spree + PostgreSQL</li>
+		<li>Source code managed by the Git version control system</li>
+		<li>10 different developer accounts</li>
+		<li>A bunch of camps</li>
+	</ul>
+</div>
+
+
+<div class="slide">
+	<h1>Turkey Store camps</h1>
+	<ul>
+		<li>Camp index</li>
+		<li>~jon/camp*/</li>
+		<li>inside: httpd, pgsql, rails</li>
+		<li>re --all (uses cwd)</li>
+		<li>ps uxww</li>
+		<li>listeners on custom TCP ports</li>
+		<li>psql_camp</li>
+	</ul>
+	<div class="handout">
+		<ul>
+			<li>Show the camp-index.</li>
+			<li>ssh to the server as user jon.</li>
+			<li>Create a new camp.</li>
+			<li>Scroll back in screen to review what mkcamp did.</li>
+			<li>Reload camp-index to show the new camp in the list.</li>
+			<li>The new camp site should look the same as camp0.</li>
+			<li>ls -lFa camp$x and look at httpd, pgsql, rails.</li>
+			<li>Show in "ps uxww" the different services per camp.</li>
+			<li>netstat -nl | grep $camp_number</li>
+			<li>Run psql_camp, "show port", show that it’s a separate database cluster.</li>
+			<li>create role whatever;</li>
+			<li>Switch to camp$y, psql_camp, show that the new role from camp$x is not there.</li>
+		</ul>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>“Different makes a difference”</h1>
+	<ul>
+		<li>Database schema</li>
+		<li>Database contents (everything!)</li>
+		<li>Web server</li>
+		<li>Operating system: word size, version, libraries</li>
+		<li>Application versions</li>
+	</ul>
+	<div class="handout">
+		<p>If you’re not using a current near-identical copy of your production database, you’re developing against a toy.</p>
+		<p>Say you develop with Rails locally. You’ve probably got some Apache redirects, rewrites, subdomains set up, and they’re not reflected in the WEBrick toy webserver in development. You can’t test Apache changes there.</p>
+		<p>Are you using the same hardware (32- vs. 64-bit), operating system, libraries, web server, database, as the production system and as the other developers? Who really wants to deal with the Ubuntu/RHEL/Debian/Mac OS X differences, WEBrick vs. Apache, Postgres 8.1 vs. 8.3 version differences, setup & keeping database fresh. What about development environment accessibility, automation, backups?</p>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>Camps to the rescue</h1>
+	<ul>
+		<li>Deal with complex sites.</li>
+		<li>Keep as much the same as possible between development, staging, and production.</li>
+		<li>Automate everything, make it easy.</li>
+	</ul>
+	<div class="handout">
+		<p>Most simple sites don’t stay simple. If they’re at all successful, there are more projects, more people, more time pressures. It’s better to plan for success.</p>
+		<p>Camps require some initial investment, force some discipline, and require a little occasional maintenance. The value comes out when you’re dealing with a system that actually matters. And the payoff usually comes in saved time and sanity, more quickly than you’d expect.</p>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>Camps mean:</h1>
+	<ul>
+		<li>Provide a central index of camps</li>
+		<li>Camps are accessible to all who need access</li>
+		<li>One camp per project</li>
+		<li>Often more than one camp per developer</li>
+		<li>Separate web server, database, and app server</li>
+		<li>Staging sites are camps too</li>
+		<li>Version control is how code moves around</li>
+		<li>Use version control even in production</li>
+	</ol>
+	<div class="handout">
+		<p>It’s surprisingly important to have a “home page” for all camps, so that anyone can easily see at a glance which developers are working where, and on what projects, and can easily click through to test things out.</p>
+		<p>There’s nothing about the Ruby on Rails conventions for development that is inherently opposed to a central development server, but that’s not how people do it by default. We added support for Rails to the camps system and all the expected benefits were there. Code that was developed in private, not accessible to the business people, was now always visible. Other developers could log into an account and see code in progress, even before it’s committed to version control.
+		<p>Though it isn’t supposed to ever happen, files <em>do</em> get changed directly in production, either by the business folks or by developers. Since you’re still pushing code from development to production with rsync, those changes simply get overwritten, leading to confusion and frustration. So you start using the version control system to pull the changes into production, and the version control system alerts you to any conflicts and allows you to commit changes made there. And helps you to educate the people who made such changes so that most occurrences of this go away.</p>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>Also helpful:</h1>
+	<ol>
+		<li>Use <tt>https</tt> in development just like in production</li>
+		<li>Use subdomains in development so cookies are separate</li>
+		<li>Scripted destruction of old camps</li>
+		<li>Outgoing email intercept</li>
+		<li>Unit tests</li>
+	</ol>
+	<div class="handout">
+		<ol>
+			<li>Except for the weird bugs that only seem to crop up after code’s already been promoted into production. For example, you never bothered setting up SSL for development, as that’s obviously not needed. But browser security warnings dealing with http vs. https appear in production and you realize you need SSL in development to catch them.
+			<li>And there are pesky cookie bugs that are hard to reproduce but that keep coming back. It turns out that some of your development environments are stepping on each other’s cookies, and some development cookies are even messing up production. That “shouldn’t” matter because it just affects internal people, but those internal people take and process orders, do data entry, test your code and report bugs. Setting up a separate subdomain for each development environment solves the problem, but what a pain!</li>
+			<li>It needs to be just as easy to destroy a no-longer-needed camp as it was to create it. But that involves a little bit more than just deleting the files, so we’ll script it. The database, app server, and web server need to be shut down, the files removed, and the camp removed from the camps index.</li>
+			<li>Outgoing email is an important part of many web apps, and where the app server supports it, we have camps automatically configure it to intercept all outgoing email and reroute it to the developer. This makes testing easy, even with various recipients. If the app server doesn’t support it, there’s a daemon called "fakemail" that can intercept it server-wide.</li>
+			<li>Unit tests are much talked about, not often enough done. Use them, and benefit. Camps don’t do anything about them specifically, but every developer has a place to run them.</li>
+		</ol>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>Languages</h1>
+	<p>Camps are language-agnostic, and have been used so far with:</p>
+	<ul>
+		<li>Perl</li>
+		<li>PHP</li>
+		<li>Python</li>
+		<li>Ruby</li>
+	</ul>
+</div>
+
+
+<div class="slide">
+	<h1>Application frameworks</h1>
+	<p>Camps are also framework-agnostic, and have been used so far with:</p>
+	<ul>
+		<li>Interchange</li>
+		<li>Ruby on Rails (in both Mongrel and Passenger)</li>
+		<li>osCommerce</li>
+		<li>Django (in mod_python)</li>
+		<li>simple CGIs</li>
+	</ul>
+</div>
+
+
+<div class="slide">
+	<h1>Workflow</h1>
+	<ul>
+		<li>Edit in a camp</li>
+		<li>Test</li>
+		<li>Commit</li>
+		<li>Approval (as your needs require)</li>
+		<li>Push</li>
+		<li>Pull and test in staging</li>
+		<li>Pull into production when desired</li>
+	</ul>
+	<div class="handout">
+		<ul>
+			<li>Change colors and title of the Spree header.</li>
+			<li>Show the change.</li>
+			<li>git status; git diff</li>
+			<li>git commit -a; git push</li>
+			<li>View camp0; nothing changed yet.</li>
+			<li>Switch to staging user; cd camp0 && git pull</li>
+			<li>Refresh camp0 display, now change should be there.</li>
+		</ul>
+</div>
+
+
+<div class="slide">
+	<h1>Glance at a real camps system</h1>
+	<p>They have a lot going on:</p>
+	<ul>
+		<li>Many projects</li>
+		<li>55 camps</li>
+		<li>18 developers</li>
+		<li>3 different storefronts (in every camp)</li>
+		<li>3 staging camps</li>
+	</ul>
+	<p>The actual camps are firewalled so as to keep search engines from indexing them and causing trouble for their production system.</p>
+	<div class="handout">
+		<p>Let’s look at a snapshot of the camp index from one company’s actual camp system.</p>
+		<p>Note the comments have links to RT ticket numbers in their private ticket tracking system.</p>
+		<p>A few of the 18 “developers” are actually business people or graphic designers. They’re less likely to do the version control work themselves, but they edit files in their camps and have a developer to the committing for them.</p>
+		<p>This camp index shows running camps in bold as a convenience. As we see, it’s typical for not all camps to be running at the same time, to conserve server resources when a project is back-burnered for a while.</p>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>Deployment challenges</h1>
+	<ul>
+		<li>Office firewalls blocking “weird” ports</li>
+		<li>Migrating into camps and discovering even more application spaghetti and goo than expected</li>
+	</ul>
+	<div class="handout">
+		<p>You should expect the unexpected when it comes to firewall. A surprisingly tight egress firewall on the camps server may be only the beginning of woes. The business’s various offices may have tight egress firewalls per location that don’t allow access to your camps server at all, or to ports 9000-9199, and it will take time to get their network administrator to open this up. Some network administrators have the funny idea that “opening up 200 ports” is a very dangerous thing to do. We’ve always had it work out, but it may take some discussion and time. In the worst case you could set up a VPN between their office and the camps server.</p>
+		<p>All sorts of weird and little-known integration with services on other servers, long-forgotten scripts, cron jobs, and apps on the production and developent servers, etc., will come out as you install an existing app into camps. There’s nothing you can do about it except roll with the punches. It’s not because of camps; it’s because you’re trying to make order out of disorder.</p>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>Resource challenges</h1>
+	<p>On busy servers with many active camps, we’ve at various times run into limits of:</p>
+	<ul>
+		<li>RAM</li>
+		<li>semaphores (Apache)</li>
+		<li>shared buffers (Postgres)</li>
+		<li>disk space</li>
+		<li>CPU and I/O</li>
+		<li>100 camps (arbitrary, but real)</li>
+	</ul>
+	<div class="handout">
+		<p>In short, hardware is cheaper than developers. Camps optimize for developers and business users over hardware. For camps you also will want to invest in the server, while the client machines aren’t a big concern (as long as they run an ssh client and a web browser).
+		<p>Because camps have their own running daemons for each part of the application stack, they use more RAM than a system that cuts corners. RAM’s cheap enough that you should just buy more. But it may be different for the business people to think that you’ll want <em>more</em> RAM in your development box than in production, or the same amount at least.</p>
+		<p>Each Apache daemon uses semaphores, and the default Linux kernel needs to be configured to have more. It’s easy to do.</p>
+		<p>Each Postgres daemon uses some shared buffers, and the kernel needs to be configured to have more. It’s also easy to do.</p>
+		<p>Get lots of cheap disk. You’re going to have a complete copy of the whole application stack: docroot, app, database. To save some disk space you can use symbolic links for large docroot segments such as images or downloads, if developers don’t routinely need to change those in camps. You can use writeable LVM atomic filesystem snapshots of a single database to make database copies take less space and refresh more quickly.</p>
+		<p>CPU and I/O may become a limiting factor during camp rebuilds (lots of file copying and database imports), or during performance testing of a development or staging site. Having developers update camp databases or create new camps after hours can help. Or just getting better hardware usually solves the problem.</p>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>Guiding principles</h1>
+	<p>Starting with the most important:</p>
+	<ol>
+		<li>Accessible</li>
+		<li>Separate</li>
+		<li>Automated</li>
+		<li>Current</li>
+		<li>Versioned</li>
+		<li>Identical</li>
+		<li>Easy</li>
+		<li>Fast</li>
+	</ol>
+	<div class="handout">
+		<p>I can summarize the many details of the previous slides with these guiding principles.</p>
+		<ol>
+			<li>Keeping camps accessible is actually the most important thing. If the business people can’t get to them, development happens in the shadows, the wrong problems get solved, other developers have no visibility, and working together is difficult.</li>
+			<li>Camps need to be separate from production, and from each other. We compromise for usability’s sake and keep one developer’s camps all in the same home directory so it’s easy to get at the files, but unless the developer chooses to intermingle them, they are all completely independent.</li>
+			<li>Automating camps was crucial. Anything that must be done manually is hard to make time for, and very annoying when it’s finally done. It puts burdens on those who know how things work, and if those who don’t know as well end up doing a task, they may break things for others. It doesn’t make sense to automate a one-off, but pretty much everything about camps is going to be repeated.</li>
+			<li>Having current code, data, and configurations is essential. Many people think it’s fine to do development with stale data, or a subset of the data, but this always leads to trouble. Displays don’t look the same with different data. Queries don’t perform the same with less data, or very different data.</li>
+			<li>Version control is wonderful. It doesn’t solve all problems, but it solves the problems it’s meant to solve very well. I don’t list it first only because in practice the higher-ranked items surprisingly turned out to be even more important -- but not sufficient!</li>
+			<li>Making the various environments as nearly identical as possible is one of the main lessons here. Most compromises for time, disk space, memory, or anything else turn out to be a mistake. When in doubt, make it identical. As said in <cite>Practices of an Agile Developer</cite>: “Different makes a difference.” (#21)</li>
+			<li>If it’s not easy, people will usually not do it, or will do it incorrectly. People are busy. Things need to be done under unexpected time pressure. Plan for the unexpected by automating things, and making them easy. If you feel you’re spoiling yourself or your fellow developers, you’re probably on the right track, and will soon wonder how you lived without it.</li>
+			<li>If something takes too long, people will avoid doing it. Don’t live with slowness for too long without looking for ways to improve it.</li>
+		</ol>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>Coordinating people</h1>
+	<ol>
+		<li>Version control commit notifications by email, with inline diffs</li>
+		<li>Use a ticket tracker</li>
+		<li>Use a wiki</li>
+		<li>Offer a web repository browser</li>
+		<li><tt>screen -x</tt></li>
+		<li>Phone conferences</li>
+	</ol>
+	<div class="handout">
+		<p>A quick aside: These things aren’t part of camps per se, but I wouldn’t want to do development without them, so I want to mention them here.</p>
+		<ol>
+			<li>As the project has grown, developers have been unaware that someone else already committed a change for the same problem they were working on. You set up an automated commit email notification in the version control system, so everyone finds out every time a commit is made. Adding an inline diff makes it trivial for developers to review each other’s code, hit reply to comment or ask questions, and be aware of changes that are being made.</li>
+			<li>It was hard to keep track of the open projects, bugs, feature enhancement requests, etc. until you set up a ticket tracker. The hardest thing was deciding which one to use! But it really didn’t matter, compared to not having one at all.</li>
+			<li>Setting up a wiki was a big improvement as well. Now project documentation, people’s contact information, emergency procedures, etc. are in one location everyone knows about, and everyone can easily contribute to.</li>
+			<li>Offering developers a web interface to browse the version control repository makes the previously hidden visible. Less technical people can just as easily browse the change history and see what changed when, and whether a particular change has been committed yet or not. When using distributed version control, this isn’t quite as important since each cloned repository can be browsed independently, but it’s still helpful.</li>
+			<li>GNU screen is a powerful tool in general, but especially the shared screen feature is excellent for pair programming, code review, and troubleshooting.</li>
+			<li>Cheap and easy phone conferencing can make a world of difference in working together with other developers. Make sure you have a VoIP or land line with a hands-free headset, that doesn’t use batteries, so you can work together comfortably for hours if needed, as if in the same room. Combined with shared screens and these other tools, phone calls can make for some very efficient collaboration.</li>
+		</ol>
+	</div>
+</div>
+
+
+<div class="slide">
+	<h1>Current camps work</h1>
+	<ul>
+		<li>Convert internal wiki documentation to public website tutorials and command-line help</li>
+		<li>Create RPM and Debian packages for easy camps system install on a fresh server</li>
+		<li>Unify commands into a single “camp” command à la git, svn, and similar (details on next slide)</li>
+	</ul>
+</div>
+
+
+<div class="slide">
+	<h1>Command unification</h1>
+	<p>The current set of commands is too inconsistent:</p>
+	<table border="1" cellpadding="1" style="font-size: smaller">
+		<tr>
+			<th>current</th>
+			<th>upcoming</th>
+		</tr>
+		<tr>
+			<td>(new)</td>
+			<td>camp help</td>
+		</tr>
+		<tr>
+			<td>mkcamp</td>
+			<td>camp make</td>
+		</tr>
+		<tr>
+			<td>rmcamp</td>
+			<td>camp destroy</td>
+		</tr>
+		<tr>
+			<td>re --start</td>
+			<td>camp start</td>
+		</tr>
+		<tr>
+			<td>re --stop</td>
+			<td>camp stop</td>
+		</tr>
+		<tr>
+			<td>re</td>
+			<td>camp re[start]</td>
+		</tr>
+		<tr>
+			<td>psql_camp</td>
+			<td>camp psql</td>
+		</tr>
+		<tr>
+			<td>mysql_camp</td>
+			<td>camp mysql</td>
+		</tr>
+		<tr>
+			<td>refresh-camp</td>
+			<td>camp update</td>
+		</tr>
+		<tr>
+			<td>camp-info</td>
+			<td>camp info</td>
+		</tr>
+		<tr>
+			<td>(web only)</td>
+			<td>camp list</td>
+		</tr>
+		<tr>
+			<td>with-camp</td>
+			<td>camp [command]</td>
+		</tr>
+		<tr>
+			<td>camp-lint</td>
+			<td>camp lint</td>
+		</tr>
+		<tr>
+			<td>(new)</td>
+			<td>camp test</td>
+		</tr>
+	</table>
+</div>
+
+
+<div class="slide">
+	<h1>Future directions for camps</h1>
+	<ul>
+		<li>Refactor core code to accommodate any number of arbitrary services, instead of hardcoding the types of webserver, application server, and database</li>
+		<li>Integrate one-off LVM snapshot support to current camp system</li>
+		<li>Support virtual machine components</li>
+		<li>Remove limit of 100 camps per system</li>
+		<li>Support Mercurial, Bazaar, and (again) CVS</li>
+		<li>Adapt system service SELinux policies (e.g. for Apache and PostgreSQL) for those services in camps, to provide the same constraints in development</li>
+	</ul>
+</div>
+
+
+<div class="slide">
+	<h1>Further information</h1>
+	<ul>
+		<li>Camps: <a href="http://www.devcamps.org/">http://www.devcamps.org/</a></li>
+		<li>End Point: <a href="http://www.endpoint.com/">http://www.endpoint.com/</a></li>
+		<li>My email: <a href="mailto:jon@endpoint.com">jon@endpoint.com</a></li>
+	</ul>
+	<p>(If viewing these slides online, note that printing and print preview will show more detailed notes alongside what’s in the slides.)</p>
+</div>
+
+
+<script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try {
+var pageTracker = _gat._getTracker("UA-525312-11");
+pageTracker._trackPageview();
+} catch(err) {}</script>
+</body>
+</html>
+
+<!-- vim: set noet ts=2 sw=2: -->

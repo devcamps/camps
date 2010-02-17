@@ -1,0 +1,27 @@
+INSTALLATION NOTES
+------------------
+
+General information about installing/setting up camps is available on
+http://devcamps.org
+
+
+Recent Changes
+--------------
+If you use PostgreSQL as your backend database, you will need to
+explicitly choose a postgresql.conf target to match your
+installed/used PostgreSQL version.  Previously, the default had been
+for 8.1's configuration file, and was recently changed to 8.3.
+
+If you are running camps from the git repo, your symlink will have
+disappeared with recent changes; never fear, just explicitly symlink
+the appropriate file.
+
+Something similar to the following should get you started:
+
+  $ su camp
+  $ cd ~camp/pgsql
+  $ ln -sf postgresql-8.4.conf postgresql.conf
+
+Obviously you would select the correct version of the postgresql.conf
+file appropriate to your PostgreSQL configuration.  If in doubt,
+run: `postgres --version`.

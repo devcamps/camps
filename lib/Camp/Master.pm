@@ -16,7 +16,7 @@ use DBI;
 use Exporter;
 use base qw(Exporter);
 
-our $VERSION = '3.00';
+our $VERSION = '3.01';
 
 @Camp::Master::EXPORT = qw(
     base_path
@@ -78,7 +78,7 @@ Camp::Master - library routines for management of camps
 
 =head1 VERSION
 
-3.00
+3.01
 
 =cut
 
@@ -912,6 +912,10 @@ Defaults to /usr/lib/httpd.
 The path to the Apache executable for controlling the Apache server.
 
 Defaults to /usr/sbin/httpd.
+
+=item httpd_define
+
+A space-separated list of parameter names that should be defined for Apache at startup time (via -D on the command line). These can be tested for in Apache configuration with the IfDefine parameter. See L<http://httpd.apache.org/docs/2.2/mod/core.html#ifdefine> for details.
 
 =item httpd_specify_conf
 
@@ -2779,6 +2783,8 @@ sub httpd_control {
             and $conf->{httpd_path} =~ /\S/;
 
     my $cmd = "$conf->{httpd_cmd_path} -d $conf->{httpd_path} -k $action";
+    $cmd .= join('', map { " -D$_" } grep /\S/, split / /, $conf->{httpd_define})
+        if $conf->{httpd_define};
     if (defined $conf->{httpd_specify_conf} and $conf->{httpd_specify_conf} =~ /\S/) {
         $cmd .= " -f $conf->{httpd_path}/$conf->{httpd_specify_conf}";
     }
@@ -3018,7 +3024,7 @@ Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2009 End Point Corporation, http://www.endpoint.com/
+Copyright (C) 2006-2010 End Point Corporation, http://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

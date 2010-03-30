@@ -2742,7 +2742,7 @@ sub _db_control_mysql {
         return _db_control_mysql( 'start' );
     }
     elsif ($action eq 'start') {
-        $cmd = "nohup mysqld_safe --defaults-file=$conf->{db_conf} &";
+        $cmd = "nohup mysqld_safe --defaults-file=$conf->{db_conf} > $conf->{db_tmpdir}/nohup.out 2>&1 &";
     }
     else {
         $action = 'shutdown' if $action eq 'stop';

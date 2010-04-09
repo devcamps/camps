@@ -594,7 +594,7 @@ sub base_user {
 }
 
 sub dbh {
-    return $dbh if defined $dbh;
+    return $dbh if defined $dbh and $dbh->ping;
     my %settings = camp_db_config();
     my ($dsn, $user, $pass) = @settings{qw( dsn user password )};
     die "Must specify a DSN and user to access camp database!\n"

@@ -71,6 +71,8 @@ print <<'END';
 
 </table>
 
+<p>Powered by <a href="http://www.devcamps.org/">DevCamps</a>.
+
 </body>
 </html>
 END

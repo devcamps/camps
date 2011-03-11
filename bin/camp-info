@@ -95,19 +95,19 @@ if ($opt{help}) {
     exit;
 }
 
+if ($opt{all}) {
+    my $username = getpwuid($<);
+    my $info = Camp::Master::get_all_camp_info( $username );
+    print $info;
+    exit;
+}
+
 my $display_output_headers = ! $opt{quiet};
 my $camp_number = resolve_camp_number(shift);
 
 if (!defined $camp_number) {
     exit 1 if $opt{quiet};
     die "$0: couldn't determine camp; specify in command line or CAMP environment variable\n";
-}
-
-if ($opt{all}) {
-    my $username = getpwuid($<);
-    my $info = Camp::Master::get_all_camp_info( $username );
-    print $info;
-    exit;
 }
 
 my $info = Camp::Master::get_camp_info( $camp_number );

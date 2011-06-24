@@ -757,6 +757,7 @@ sub substitute_hash_tokens {
 
 sub _config_hash_db {
     my ($hash, $camp_number) = @_;
+    return if $hash->{skip_db};
     _determine_db_type_and_path( $hash ) or die "Failed to determine database type!\n";
     $hash->{db_host}       = 'localhost';
     $hash->{db_port}       = 8900 + $camp_number;
@@ -774,6 +775,9 @@ sub _config_hash_db {
         $hash->{db_conf}       = File::Spec->catfile( $hash->{path}, 'my.cnf', );
         $hash->{db_socket}     = File::Spec->catfile( $hash->{db_tmpdir}, "mysql.$camp_number.sock" );
     }
+    elsif ($hash->{db_type} eq 'none') {
+        # do nothing
+    }
     else {
         die "Unknown database type!\n";
     }
@@ -789,10 +793,9 @@ sub _determine_db_type_and_path {
     );
 
     my @found = grep { -d File::Spec->catfile( type_path(), $_ ) } keys %paths;
+    return $conf->{db_type} = 'none' if !@found;
     die "Found more than one database type; only one may be used!\n"
         if @found > 1;
-    die "No database found for camp type!\n"
-        if !@found;
     $conf->{db_path} = File::Spec->catfile( $conf->{path}, $found[0] );
     $conf->{db_type} = $paths{$found[0]};
     return $conf->{db_type};

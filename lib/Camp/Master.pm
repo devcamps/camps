@@ -1954,8 +1954,10 @@ necessary, and vary in a controlled way between environments by virtue of being 
 =cut
 
 sub install_templates {
-    parse_roles() unless defined $roles;
     my $conf = config_hash();
+    unless (defined($roles) or $conf->{skip_db}) {
+        parse_roles();
+    }
     my $template_path = File::Spec->catfile(type_path(), 'etc');
     local $/;
     for my $file (@edits) {
@@ -2552,6 +2554,7 @@ sub _import_db_cmd_mysql {
 sub prepare_database {
     my $replace = shift;
     my $conf = config_hash();
+    return if $conf->{skip_db};
     my (@roles, @sources, @dbnames);
     _prepare_database_vars( $conf, \@roles, \@sources, \@dbnames );
 
@@ -2660,6 +2663,7 @@ sub server_control {
     $services{ic}       = \&ic_control if has_ic();
     $services{rails}    = \&rails_control if has_rails();
     $services{$dbtype}  = $db_services{$dbtype};
+    delete $services{db} if $conf_hash->{skip_db};
 
     my @services = grep { defined $services{$_} } qw(
         httpd

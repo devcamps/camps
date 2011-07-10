@@ -1,0 +1,315 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+img, fieldset {
+    border: 0;
+}
+
+a {
+    color: #0f8bff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+html {}
+
+@font-face {
+    font-family: 'PTSansNarrowRegular';
+    src: url('font/PTN57F-webfont.eot');
+    src: url('font/PTN57F-webfont.eot?#iefix') format('embedded-opentype'),
+         url('font/PTN57F-webfont.woff') format('woff'),
+         url('font/PTN57F-webfont.ttf') format('truetype'),
+         url('font/PTN57F-webfont.svg#PTSansNarrowRegular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'PTSansCaptionBold';
+    src: url('font/PTC75F-webfont.eot');
+    src: url('font/PTC75F-webfont.eot?#iefix') format('embedded-opentype'),
+         url('font/PTC75F-webfont.woff') format('woff'),
+         url('font/PTC75F-webfont.ttf') format('truetype'),
+         url('font/PTC75F-webfont.svg#PTSansCaptionBold') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'PTSansCaptionRegular';
+    src: url('font/PTC55F-webfont.eot');
+    src: url('font/PTC55F-webfont.eot?#iefix') format('embedded-opentype'),
+         url('font/PTC55F-webfont.woff') format('woff'),
+         url('font/PTC55F-webfont.ttf') format('truetype'),
+         url('font/PTC55F-webfont.svg#PTSansCaptionRegular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'PTSansBoldItalic';
+    src: url('font/PTS76F-webfont.eot');
+    src: url('font/PTS76F-webfont.eot?#iefix') format('embedded-opentype'),
+         url('font/PTS76F-webfont.woff') format('woff'),
+         url('font/PTS76F-webfont.ttf') format('truetype'),
+         url('font/PTS76F-webfont.svg#PTSansBoldItalic') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'PTSansBold';
+    src: url('font/PTS75F-webfont.eot');
+    src: url('font/PTS75F-webfont.eot?#iefix') format('embedded-opentype'),
+         url('font/PTS75F-webfont.woff') format('woff'),
+         url('font/PTS75F-webfont.ttf') format('truetype'),
+         url('font/PTS75F-webfont.svg#PTSansBold') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'PTSansItalic';
+    src: url('font/PTS56F-webfont.eot');
+    src: url('font/PTS56F-webfont.eot?#iefix') format('embedded-opentype'),
+         url('font/PTS56F-webfont.woff') format('woff'),
+         url('font/PTS56F-webfont.ttf') format('truetype'),
+         url('font/PTS56F-webfont.svg#PTSansItalic') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'PTSansRegular';
+    src: url('font/PTS55F-webfont.eot');
+    src: url('font/PTS55F-webfont.eot?#iefix') format('embedded-opentype'),
+         url('font/PTS55F-webfont.woff') format('woff'),
+         url('font/PTS55F-webfont.ttf') format('truetype'),
+         url('font/PTS55F-webfont.svg#PTSansRegular') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'PTSansNarrowBold';
+    src: url('font/PTN77F-webfont.eot');
+    src: url('font/PTN77F-webfont.eot?#iefix') format('embedded-opentype'),
+         url('font/PTN77F-webfont.woff') format('woff'),
+         url('font/PTN77F-webfont.ttf') format('truetype'),
+         url('font/PTN77F-webfont.svg#PTSansNarrowBold') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+
+body {
+    font-family: PTSansCaptionRegular, Verdana, Tahoma, Arial, sans-serif;
+    font-size: 13px;
+    letter-spacing: -0.75px;
+}
+
+.wrapper {
+    width: 960px;
+    margin: 0 auto;
+}
+
+.body-main {
+    width: 400px;
+    margin: 0 auto;
+}
+
+#header {
+    background: url(img/devcamps-top.png) repeat-x top left;
+    height: 60px;
+    z-index: 1001;
+    position: relative;
+}
+
+#header .wrapper {
+    position: relative;
+}
+
+#logo {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+#menu-main {
+    padding: 20px 0 0 150px;
+}
+
+#menu-main li {
+    float: left;
+    list-style: none;
+    margin: 0 80px 0 0;
+}
+
+#menu-main a {
+    color: #656565;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+#intro {
+    /* background: url(img/devcamps-pattern.png); */
+	background-color: #ec5051;
+    margin: -6px 0 0 0;
+    height: 507px;
+    color: #fff;
+    text-transform: uppercase;
+    overflow: hidden;
+}
+
+#intro .inner {
+    height: 507px;
+    width: 960px;
+    margin: 0 auto;
+    position: relative;
+}
+
+#intro .wrapper {
+    width: 1593px;
+    height: 507px;
+    background: url(img/devcamps-illustration.jpg) repeat-x top left;
+    position: absolute;
+    top: 0;
+    left: -180px;
+    padding: 0 0 0 180px;
+}
+
+
+#intro h1 {
+    font-size: 20px;
+    padding: 120px 0 15px 0;
+}
+
+#intro p {
+    font-weight: bolder;
+    margin: 0 0 20px 0;
+    line-height: 200%;
+    width: 575px;
+}
+
+#intro li {
+    margin: 0 0 20px 0;
+    line-height: 200%;
+    width: 575px;
+}
+
+#intro .mixcase {
+    text-transform: none;
+}
+
+#intro .mixcase p {
+    margin: 0 0 10px 0;
+}
+
+#intro .mixcase li {
+    margin: 0 0 2px 0;
+    line-height: 110%;
+}
+
+#intro .col3 {
+	width: 500px;
+	-moz-column-count: 3;
+	-moz-column-gap: 10px;
+	-webkit-column-count: 3;
+	-webkit-column-gap: 10px;
+	column-count: 3;
+	column-gap: 10px;
+}
+
+#footer {
+    background: url(img/devcamps-bottom.png) repeat-x top left;
+    position: relative;
+    margin: -6px 0 0 0;
+    padding: 6px 0 0 0;
+    text-transform: uppercase;
+}
+
+#footer .inner {
+    background: #f3f3f3;
+    padding: 50px 0;
+}
+
+#footer p {
+    color: #d34b4b;
+    font-size: 12px;
+    font-weight: bolder;
+    width: 500px;
+    margin: 0 0 15px 0;
+    line-height: 150%;
+    text-transform: none;
+}
+
+#footer p + p {
+}
+
+.attribution {
+	text-align: right;
+}
+
+#tour {
+    display: block;
+    width: 289px;
+    height: 33px;
+    font-size: 20px;
+    color: #fff;
+    text-align: center;
+    background: url(img/devcamps-button.png);
+    padding: 9px 0 0 0;
+    font-weight: bolder;
+}
+
+#hello {
+    display: block;
+    width: 169px;
+    height: 70px;
+    font-size: 18px;
+    color: #ed5455;
+    background: url(img/devcamps-hello.png) no-repeat top left;
+    padding: 39px 0 0 6px;
+    font-weight: bolder;
+    float: right;
+}
+
+#tour:hover, #hello:hover {
+    text-decoration: none;
+}
+
+#terms {
+    text-align: center;
+    color: #6c6c6c;
+    font-size: 12px;
+    padding: 13px 0 3px 0;
+}
+
+#copy {
+    text-align: center;
+    color: #aaaaaa;
+    font-size: 12px;
+    padding: 0 0 13px 0;
+    letter-spacing: -0.5px;
+}
+
+#terms a {
+    color: #199480;
+}
+
+
+/* clearfix */
+.fix:after {
+    visibility: hidden;
+    display: block;
+    font-size: 0;
+    content: " ";
+    clear: both;
+    height: 0;
+}
+* html .fix             { zoom: 1; }
+*:first-child+html .fix { zoom: 1; }

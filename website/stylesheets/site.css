@@ -9,8 +9,7 @@ div.wrapper { width: 965px; margin: 0px auto; clear: both; }
 h1 { font-size: 21px; }
 div#content { z-index: 50; width: 100%; padding: 20px 0px 50px 0px; }
 div#header { background: #FFF url(/images/trinkets.png) 0px -121px repeat-x; height: 41px; z-index: 9; }
-  a#logo { float: left; margin: 1px 10px 0px 0px; display: block; width: 300px; opacity: 0.9; }
-    a#logo img { width: 300px; height: 100px; }
+  a#logo { float: left; margin: 1px 10px 0px 0px; display: block; opacity: 0.9; }
   ul#main_nav { list-style-type: none; margin: 0px; }
     ul#main_nav li { float: left; font-size: 13px; height: 41px; }
     ul#main_nav li:hover { background: #FFF; }

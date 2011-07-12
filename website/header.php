@@ -4,19 +4,19 @@
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
         <title><?php echo $title ?></title>
         <link href="/main.css" type="text/css" rel="stylesheet" />
-		<link href="/img/devcamps-favicon.png" type="image/png" rel="shortcut icon" />
+        <link href="/img/devcamps-favicon.png" type="image/png" rel="shortcut icon" />
     </head>
     <body<?php
-	if ($page_type == 'doc') echo ' id="body" class="doc"';
+    if ($page_type == 'doc') echo ' id="body" class="doc"';
 ?>>
         <div id="header" class="fix">
             <div class="wrapper">
                 <a id="logo" href="/"><img src="/img/devcamps.png" alt="home"/></a>
-                <ul id="menu-main">             
-                    <li><a href="/why">why camps?</a></li>   
-                    <li><a href="/documentation">documentation</a></li>   
-                    <li><a href="/community">community</a></li>   
-                    <li><a href="/code">code</a></li>   
+                <ul id="menu-main">
+                    <li><a href="/why">why camps?</a></li>
+                    <li><a href="/documentation">documentation</a></li>
+                    <li><a href="/community">community</a></li>
+                    <li><a href="/code">code</a></li>
                 </ul>
             </div>
         </div>

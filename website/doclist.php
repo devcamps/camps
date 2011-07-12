@@ -19,6 +19,6 @@
 <h2>Configuration, API, and Internals:</h2>
 
 <ul>
-	<li><a href="/docs/Config">Camp::Config</a></li>
-	<li><a href="/docs/Master">Camp::Master</a></li>
+    <li><a href="/docs/Config">Camp::Config</a></li>
+    <li><a href="/docs/Master">Camp::Master</a></li>
 </ul>

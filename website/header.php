@@ -6,7 +6,9 @@
         <link href="/main.css" type="text/css" rel="stylesheet" />
 		<link href="/img/devcamps-favicon.png" type="image/png" rel="shortcut icon" />
     </head>
-    <body>
+    <body<?php
+	if ($page_type == 'doc') echo ' id="body" class="doc"';
+?>>
         <div id="header" class="fix">
             <div class="wrapper">
                 <a id="logo" href="/"><img src="/img/devcamps.png" alt="home"/></a>

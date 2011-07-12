@@ -117,11 +117,6 @@ body {
     margin: 0 auto;
 }
 
-.body-main {
-    width: 400px;
-    margin: 0 auto;
-}
-
 #header {
     background: url(img/devcamps-top.png) repeat-x top left;
     height: 60px;
@@ -157,16 +152,18 @@ body {
 
 #intro {
     /* background: url(img/devcamps-pattern.png); */
-	background-color: #ec5051;
+    background-color: #ec5051;
     margin: -6px 0 0 0;
-    height: 507px;
+    height: auto !important;
+    min-height: 507px;
     color: #fff;
     text-transform: uppercase;
     overflow: hidden;
 }
 
 #intro .inner {
-    height: 507px;
+    height: auto !important;
+    min-height: 507px;
     width: 960px;
     margin: 0 auto;
     position: relative;
@@ -174,14 +171,18 @@ body {
 
 #intro .wrapper {
     width: 1593px;
-    height: 507px;
-    background: url(img/devcamps-illustration.jpg) repeat-x top left;
-    position: absolute;
+    height: auto !important;
+    min-height: 507px;
+    background: url(img/devcamps-illustration.jpg) repeat-x bottom left;
+    position: relative;
     top: 0;
     left: -180px;
-    padding: 0 0 0 180px;
+    padding: 0 0 70px 180px;
 }
 
+#body.doc .wrapper {
+    background: none;
+}
 
 #intro h1 {
     font-size: 20px;
@@ -193,6 +194,18 @@ body {
     margin: 0 0 20px 0;
     line-height: 200%;
     width: 575px;
+}
+
+#body.doc .wrapper p {
+    line-height: 120%;
+}
+
+#intro .inner a {
+    color: #3ef3de;
+}
+
+#intro .inner a:hover {
+    color: #222222;
 }
 
 #intro li {
@@ -215,19 +228,36 @@ body {
 }
 
 #intro .col3 {
-	width: 500px;
-	-moz-column-count: 3;
-	-moz-column-gap: 10px;
-	-webkit-column-count: 3;
-	-webkit-column-gap: 10px;
-	column-count: 3;
-	column-gap: 10px;
+    width: 500px;
+    -moz-column-count: 3;
+    -moz-column-gap: 10px;
+    -webkit-column-count: 3;
+    -webkit-column-gap: 10px;
+    column-count: 3;
+    column-gap: 10px;
+}
+
+#intro h2 {
+    font-size: 16px;
+    padding: 15px 0 0px 0;
+}
+
+#intro ul {
+    margin-left: 15px;
+    width: 389px;
+    line-height: 21px;
+}
+
+#intro ul li {
+    color: #ffffff;
+    margin: 15px 0;
+    font-size: 12px;
 }
 
 #footer {
     background: url(img/devcamps-bottom.png) repeat-x top left;
     position: relative;
-    margin: -6px 0 0 0;
+    margin: -16px 0 0 0;
     padding: 6px 0 0 0;
     text-transform: uppercase;
 }
@@ -251,7 +281,7 @@ body {
 }
 
 .attribution {
-	text-align: right;
+    text-align: right;
 }
 
 #tour {

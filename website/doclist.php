@@ -1,4 +1,4 @@
-<p>Commands:</p>
+<h2>Commands:</h2>
 
 <div class="col3">
 <ul>
@@ -16,7 +16,7 @@
 </ul>
 </div>
 
-<p>Configuration, API, and Internals:</p>
+<h2>Configuration, API, and Internals:</h2>
 
 <ul>
 	<li><a href="/docs/Config">Camp::Config</a></li>

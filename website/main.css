@@ -219,12 +219,14 @@ body {
 }
 
 #intro .mixcase p {
+    font-weight: bolder;
     margin: 0 0 10px 0;
 }
 
 #intro .mixcase li {
-    margin: 0 0 2px 0;
-    line-height: 110%;
+    font-weight: bolder;
+    margin: 0 0 8px 0;
+    line-height: 120%;
 }
 
 #intro .col3 {

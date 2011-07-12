@@ -26,7 +26,7 @@ END;
 }
 else if (preg_match('/\/community$/', $page)) {
     $quote = <<<END
-<p>“Paper Source has been using Camps for 3 years. With Camps, developers and content managers can work on multiple projects simultaneously, each in their own staging environment. I can have a new developer work on his or her own copy of the website without worrying about what might break. I can then see exactly what is new or has changed, merge a portion or all of the updates, test again and then move live. Camps foster productivity and piece of mind.”</p>
+<p>“Paper Source has been using Camps for 3 years. With Camps, developers and content managers can work on multiple projects simultaneously, each in their own staging environment. I can have a new developer work on his or her own copy of the website without worrying about what might break. I can then see exactly what is new or has changed, merge a portion or all of the updates, test again and then move live. Camps foster productivity and peace of mind.”</p>
 
 <p class="attribution">—Leigh Wetzel, Director, E-Commerce, <a href="http://www.paper-source.com/">Paper Source</a></p>
 END;

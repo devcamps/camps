@@ -256,6 +256,11 @@ body {
     font-size: 12px;
 }
 
+#intro .small {
+    margin-bottom: 20px;
+    width: 575px;
+}
+
 #footer {
     background: url(img/devcamps-bottom.png) repeat-x top left;
     position: relative;
@@ -280,6 +285,10 @@ body {
 }
 
 #footer p + p {
+}
+
+.bottomspace {
+    height: 120px;
 }
 
 .attribution {

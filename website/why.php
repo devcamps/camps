@@ -20,6 +20,8 @@
 <li>Easily juggle multiple simultaneous projects</li>
 </ul>
 
+<p>Read more in <a href="/endorsements">endorsements</a> by some happy camps users.</p>
+
 </div>
 
 <?php

@@ -105,7 +105,6 @@ my (
 );
 
 @base_edits = qw(
-    httpd/conf/httpd.conf
 );
 $base_camp_user = 'camp';
 
@@ -1909,13 +1908,6 @@ the camp type directory's 'etc/' subdirectory, and also reflect the target path 
 when copied into the new camp itself.  Thus, a file at /home/camp/some_type/etc/blah/foo.conf
 would be registered in B<camp-config-files> with a path relative to etc/, or "blah/foo.conf",
 and would be installed at /home/some_user/campNN/blah/foo.conf after parsing.
-
-One file is always parsed by default, regardless of specification in the config file:
-
- httpd/conf/httpd.conf
-
-This is the base Apache configuration, and Apache is thus always expected to live at httpd
-within a camp.  You could theoretically change this in your camp, but do so at your peril.
 
 Also, some assumptions are made about what files will be included if your camp uses
 Interchange versus Rails:

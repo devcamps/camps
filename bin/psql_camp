@@ -46,7 +46,7 @@ psql_camp - invoke the psql client for a camp PostgreSQL instance
 
 =head1 VERSION
 
-3.01
+3.02
 
 =head1 SYNOPSIS
 

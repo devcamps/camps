@@ -16,7 +16,7 @@ use DBI;
 use Exporter;
 use base qw(Exporter);
 
-our $VERSION = '3.01';
+our $VERSION = '3.02';
 
 @Camp::Master::EXPORT = qw(
     base_path
@@ -41,6 +41,7 @@ our $VERSION = '3.01';
     get_next_camp_number
     has_ic
     has_rails
+    has_app
     initialize
     install_templates
     mysql_path
@@ -79,7 +80,7 @@ Camp::Master - library routines for management of camps
 
 =head1 VERSION
 
-3.01
+3.02
 
 =cut
 
@@ -88,6 +89,7 @@ my (
     @base_edits,
     @edits,
     %edits,
+    $has_app,
     $has_rails,
     $has_ic,
     $initialized,
@@ -585,6 +587,13 @@ sub db_config_path_mysql {
     die "Cannot locate mysql/my.cnf in type definition or base camp user!\n";
 }
 
+sub has_app {
+    die "Cannot call has_app() until package has been initialized!\n" unless $initialized;
+    my $conf = config_hash();
+    return $has_app if defined $has_app;
+    return $has_app = (grep /\S/, map { $conf->{"app_$_"} } qw( start stop )) ? 1 : 0;
+}
+
 sub has_rails {
     die "Cannot call has_rails() until package has been initialized!\n" unless $initialized;
     return $has_rails if defined $has_rails;
@@ -979,6 +988,24 @@ Rendered Apache ProxyBalancer member configuration directives suitable for place
 directly within a virtualhost's <Proxy balancer://...>...</Proxy> container.  Defaults
 to using three mongrel listeners with ports incremented by one starting at the
 mongrel_base_port.
+
+=item app_start
+
+When using an application server other than those natively supported in camps, set this to the command to start your application server. For example (using a custom startup script):
+
+ __CAMP_PATH__/bin/start-unicorn
+
+=item app_stop
+
+Command to stop your application server. An example for Ruby's Unicorn:
+
+ pid=`cat __CAMP_PATH__/var/run/unicorn.pid 2>/dev/null` && kill $pid
+
+=item app_restart
+
+Command to restart your application server. An example for Ruby's Unicorn:
+
+ pid=`cat __CAMP_PATH__/var/run/unicorn.pid 2>/dev/null` && kill -HUP $pid || __CAMP_PATH__/bin/start-unicorn
 
 =item db_type
 
@@ -2669,8 +2696,9 @@ sub server_control {
     );
 
     my $dbtype = camp_db_type();
-    $services{ic}       = \&ic_control if has_ic();
+    $services{ic}       = \&ic_control    if has_ic();
     $services{rails}    = \&rails_control if has_rails();
+    $services{app}      = \&app_control   if has_app();
     $services{$dbtype}  = $db_services{$dbtype};
     delete $services{db} if $conf_hash->{skip_db};
 
@@ -2681,6 +2709,7 @@ sub server_control {
         db
         ic
         rails
+        app
     );
 
     die "Invalid action '$action' specified!\n" unless $actions{$action};
@@ -2705,6 +2734,15 @@ sub server_control {
         );
     }
     return scalar(@services_to_start);
+}
+
+sub app_control {
+    my $action = shift;
+    my $conf = config_hash();
+
+    my $cmd = $conf->{"app_$action"};
+    $cmd and do_system_soft($cmd) == 0 and return 1;
+    return;
 }
 
 sub rails_control {

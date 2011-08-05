@@ -29,12 +29,13 @@ initialize(
 );
 
 my $conf = config_hash();
+my $host = $conf->{db_host};
 my $port = $conf->{db_port};
 
 $ENV{PGUSER} ||= $conf->{db_default_user};
 $ENV{PGDATABASE} ||= $conf->{db_default_database};
 
-exec '/usr/bin/psql', '-p', $port, @ARGV;
+exec '/usr/bin/psql', '-h', $host, '-p', $port, @ARGV;
 
 
 =pod
@@ -45,7 +46,7 @@ psql_camp - invoke the psql client for a camp PostgreSQL instance
 
 =head1 VERSION
 
-3.00
+3.01
 
 =head1 SYNOPSIS
 

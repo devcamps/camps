@@ -108,6 +108,9 @@ vcs_checkout($opt{replace}) unless $opt{skipvcs};
 # Must prepare database before installing templates; do so now.
 prepare_database($opt{replace}) unless $opt{skipdb};
 
+# Create needed empty directories
+create_camp_subdirectories();
+
 # Perform simple copy/symlink operations
 process_copy_paths();
 

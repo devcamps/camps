@@ -32,6 +32,7 @@ our $VERSION = '3.01';
     camp_user_tmpdir
     config_hash
     create_camp_path
+    create_camp_subdirectories
     dbh
     db_path
     default_camp_type
@@ -298,6 +299,19 @@ sub base_tmpdir {
 sub type_path {
     my $local_type = @_ ? shift : type();
     return File::Spec->catfile( base_path(), $local_type, );
+}
+
+sub create_camp_subdirectories {
+    my $conf = config_hash();
+
+    my $dirs = $conf->{camp_subdirectories};
+    ref($dirs) eq 'ARRAY' and @$dirs or return 1;
+
+    -d $conf->{path} or die "Error in camp_subdirectories: main camp path '$conf->{path}' doesn't exist\n";
+
+    my $cwd = pushd($conf->{path}) or die "Couldn't chdir $conf->{path}: $!\n";
+
+    return File::Path::mkpath(@$dirs, { verbose => 1 });
 }
 
 sub copy_paths_config_path {

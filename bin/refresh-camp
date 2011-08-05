@@ -65,8 +65,11 @@ if (!$showpod) {
     }
 
     if ($opt{files}) {
+        create_camp_subdirectories();
+
         # process_copy_paths() uses rsync for file copying, so it functions like an update
         process_copy_paths();
+
         $operation++;
     }
 

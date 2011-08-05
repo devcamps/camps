@@ -591,7 +591,7 @@ sub has_app {
     die "Cannot call has_app() until package has been initialized!\n" unless $initialized;
     my $conf = config_hash();
     return $has_app if defined $has_app;
-    return $has_app = (grep /\S/, map { $conf->{"app_$_"} } qw( start stop )) ? 1 : 0;
+    return $has_app = (grep { defined and /\S/ } map { $conf->{"app_$_"} } qw( start stop )) ? 1 : 0;
 }
 
 sub has_rails {

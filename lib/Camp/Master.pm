@@ -948,6 +948,26 @@ Specify location of configuration file under "httpd_path" and include that in co
 
 For example, "conf/apache2.conf", used when executable has been compiled with a specific full path. To detect need for this option see httpd -V output and check for "SERVER_CONFIG_FILE" with a value similar to "/etc/apache2/apache2.conf" (any path beginning with "/").
 
+=item skip_apache
+
+A boolean (0/1) setting that determines whether to skip Apache-specific httpd server setup, for example when using nginx.
+
+=item httpd_start
+
+When setting skip_apache, set this to the command to start your webserver. An example with nginx:
+
+ /usr/sbin/nginx -c __CAMP_PATH__/nginx/nginx.conf
+
+=item httpd_stop
+
+When setting skip_apache, set this to the command to stop your webserver. An example with nginx:
+
+ pid=`cat __CAMP_PATH__/var/run/nginx.pid 2>/dev/null` && kill $pid
+
+=item httpd_restart
+
+pid=`cat __CAMP_PATH__/var/run/nginx.pid 2>/dev/null` && kill -HUP $pid || /usr/sbin/nginx -c __CAMP_PATH__/nginx/nginx.conf
+
 =item skip_ssl_cert_gen
 
 A boolean (0/1) setting that determines whether to skip generation of a self-signed SSL certificate for the HTTP server.
@@ -1868,12 +1888,15 @@ sub _ssl_private_key {
 
 sub prepare_apache {
     my $conf = config_hash();
-    # create empty directories
-    mkpath([ map { File::Spec->catfile( $conf->{httpd_path}, $_, ) } qw( conf logs run ) ]);
 
-    # symlink to system-wide Apache modules
-    symlink $conf->{httpd_lib_path}, File::Spec->catfile($conf->{httpd_path}, 'modules')
-        or die "Couldn't symlink Apache modules directory\n";
+    unless ($conf->{skip_apache}) {
+        # create empty directories
+        mkpath([ map { File::Spec->catfile( $conf->{httpd_path}, $_, ) } qw( conf logs run ) ]);
+
+        # symlink to system-wide Apache modules
+        symlink $conf->{httpd_lib_path}, File::Spec->catfile($conf->{httpd_path}, 'modules')
+            or die "Couldn't symlink Apache modules directory\n";
+    }
 
     # Create SSL certificate
     unless ($conf->{skip_ssl_cert_gen}) {
@@ -2826,22 +2849,25 @@ sub _db_control_pg {
 sub httpd_control {
     my $action = shift;
     my $conf = config_hash();
-    die "Need httpd_cmd_path definition!\n"
-        unless defined $conf->{httpd_cmd_path}
-            and $conf->{httpd_cmd_path} =~ /\S/;
-    die "Need httpd_path definition!\n"
-        unless defined $conf->{httpd_path}
-            and $conf->{httpd_path} =~ /\S/;
 
-    my $cmd = "$conf->{httpd_cmd_path} -d $conf->{httpd_path} -k $action";
-    $cmd .= join('', map { " -D$_" } grep /\S/, split / /, $conf->{httpd_define})
-        if $conf->{httpd_define};
-    if (defined $conf->{httpd_specify_conf} and $conf->{httpd_specify_conf} =~ /\S/) {
-        $cmd .= " -f $conf->{httpd_path}/$conf->{httpd_specify_conf}";
+    my $cmd = $conf->{"httpd_$action"};
+    if (!$conf->{skip_apache} and !$cmd) {
+        die "Need httpd_cmd_path definition!\n"
+            unless defined $conf->{httpd_cmd_path}
+                and $conf->{httpd_cmd_path} =~ /\S/;
+        die "Need httpd_path definition!\n"
+            unless defined $conf->{httpd_path}
+                and $conf->{httpd_path} =~ /\S/;
+
+        $cmd = "$conf->{httpd_cmd_path} -d $conf->{httpd_path} -k $action";
+        $cmd .= join('', map { " -D$_" } grep /\S/, split / /, $conf->{httpd_define})
+            if $conf->{httpd_define};
+        if (defined $conf->{httpd_specify_conf} and $conf->{httpd_specify_conf} =~ /\S/) {
+            $cmd .= " -f $conf->{httpd_path}/$conf->{httpd_specify_conf}";
+        }
     }
 
-    do_system_soft($cmd) == 0
-        and return 1;
+    $cmd and do_system_soft($cmd) == 0 and return 1;
     return;
 }
 

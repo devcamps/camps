@@ -7,7 +7,7 @@
 
 <div class="mixcase">
 
-<p>The DevCamps system is written in <a href="http://www.perl.org/">Perl 5</a> and runs on Linux and other Unix-like operating systems. The source code is maintained in a <a href="http://git-scm.com/">Git</a> repository, <a href="/cgi-bin/gitweb">browsable via gitweb</a>. To clone a copy:</p>
+<p>The DevCamps system is <a href="http://www.gnu.org/licenses/gpl.html">GPL 3+</a> free software written in <a href="http://www.perl.org/">Perl 5</a> and runs on Linux and other Unix-like operating systems. The source code is maintained in a <a href="http://git-scm.com/">Git</a> repository, <a href="/cgi-bin/gitweb">browsable via gitweb</a>. To clone a copy:</p>
 
 <pre>git clone http://git.devcamps.org/camps.git
 

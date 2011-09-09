@@ -676,7 +676,7 @@ sub get_camp_info {
 sub get_all_camp_info {
     my $username = shift;
     my $dbh = dbh();
-    my $sth = $dbh->prepare('SELECT camp_number,camp_type,create_date,comment FROM camps WHERE username = ?');
+    my $sth = $dbh->prepare('SELECT camp_number,camp_type,create_date,comment FROM camps WHERE username = ? ORDER BY camp_number');
     my $rc  = $sth->execute($username);
     my $out = "Camp #\tCamp Type\tCamp Creation Date\t\tComment\n";
     while ( my $row = $sth->fetchrow_hashref() ) {

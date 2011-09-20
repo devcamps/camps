@@ -102,8 +102,13 @@ print "Configuration hash:\n", Dumper($conf);
 # Add to camp database
 register_camp($opt{comment}) unless $opt{skipcamp};
 
-# Check out bulk of files from version control repository
-vcs_checkout($opt{replace}) unless $opt{skipvcs};
+# Make camp base directory and/or check out files from version control repository
+if ($opt{skipvcs}) {
+    create_camp_path($conf->{number}, $opt{replace});
+}
+else {
+    vcs_checkout($opt{replace});
+}
 
 # Must prepare database before installing templates; do so now.
 prepare_database($opt{replace}) unless $opt{skipdb};
@@ -158,7 +163,7 @@ mkcamp - create a new camp
 
 =head1 VERSION
 
-3.02
+3.03
 
 =head1 SYNOPSIS
 

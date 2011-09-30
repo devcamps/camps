@@ -723,7 +723,8 @@ sub camp_user_tmpdir {
 
 sub _camp_db_type_dispatcher {
     my $name = shift;
-    my $type = camp_db_type();
+    my $config = config_hash();
+    my $type   = $config->{db_type};
     my $sub = __PACKAGE__->can( "${name}_$type" );
     die "No function $name for database type $type!\n" unless $sub;
     return $sub;

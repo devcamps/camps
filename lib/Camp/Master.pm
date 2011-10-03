@@ -2023,6 +2023,7 @@ sub install_templates {
     for my $file (@edits) {
         my $source_path = File::Spec->catfile($template_path, $file);
         print "Interpolating tokenized template file '$source_path'...";
+        my $mode = (stat($source_path))[2];
         open(my $INFILE, '<', $source_path) or die "Failed to open template file '$source_path': $!\n";
         my $template = <$INFILE>;
         $template = substitute_hash_tokens(
@@ -2037,6 +2038,7 @@ sub install_templates {
         open(my $OUTFILE, '>', $target_path) or die "Failed writing configuration file '$target_path': $!\n";
         print $OUTFILE $template;
         close $OUTFILE or die "Error closing $target_path: $!\n";
+        chmod($mode, $target_path);
     }
     type_message('install_templates');
     return;

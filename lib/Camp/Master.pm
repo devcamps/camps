@@ -732,7 +732,13 @@ sub _camp_db_type_dispatcher {
 
 sub _db_type_dispatcher {
     my $name = shift;
-    my $type = camp_type_db_type();
+    my $type;
+    if ($conf_hash) {
+        $type = $conf_hash->{db_type};
+    }
+    else {
+        $type = camp_db_type();
+    }
     my $sub = __PACKAGE__->can( "${name}_$type" );
     die "No function $name for database type $type!\n" unless $sub;
     return $sub;

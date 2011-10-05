@@ -58,9 +58,9 @@ First the utility checks the first argument supplied for a valid camp number. Fa
 
 =head1 DESCRIPTION
 
-The camp system makes access to databases a bit tricky, since each camp's database (in this case, Postgres) listens on an alternate port or socket file, with each user account having custom, random passwords rather than consistent, widely known passwords. The psql_camp script is intended to simplify this, such that you may get to the Postgres client for your database painlessly without needing to know the custom port/socket, etc. 
+The camp system makes access to databases a bit tricky, since each camp's database (in this case, Postgres) listens on an alternate port or socket file, with each user account having custom, random passwords rather than consistent, widely known passwords. The psql_camp script is intended to simplify this, such that you may get to the Postgres client for your database painlessly without needing to know the custom port/socket, etc.
 
-It does this by accessing the camp's configuration via the Camp::Master library, appropriately setting the $PGUSER and $PGDATABASE environment variables, and calling psql with the corresponding port for the camp. 
+It does this by accessing the camp's configuration via the Camp::Master library, appropriately setting the $PGUSER and $PGDATABASE environment variables, and calling psql with the corresponding port for the camp.
 
 Use the psql_camp script whenever you would use psql. Command line arguments will be passed along to the underlying psql call, as noted -- if the first argument consists entirely of digits, it will be interpreted as a camp number -- psql_camp [arguments] [camp] shouldn't work. Postgres will ask for a password if psql_camp is called using another user's [camp] number, or if your ~/.pgpass file doesn't provide the correct passwords for your camp's database.
 

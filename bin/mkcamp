@@ -180,14 +180,14 @@ Creates a new camp and registers it in the camp database.
 A comment explaining the use of the new camp is required. This should likely be enclosed in quotes to work with your shell.
 
 Unless there is only one camp type available, the type must be specified as well.
- 
+
 =head1 OPTIONS
 
 =over
 
 =item --comment="<comments>"
 
-Required comment explaining the purpose of this new camp. 
+Required comment explaining the purpose of this new camp.
 
 =item --type=<type>
 

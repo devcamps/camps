@@ -1834,22 +1834,22 @@ sub vcs_local_revert {
         my ($filename, $path) = File::Basename::fileparse($file);
         push @{ $files_by_path{$path} }, $filename;
     }
-    
+
     my $vcs_type = vcs_type();
     my %map = (
         svn => 'svn revert %s',
         svk => 'svk revert %s',
         git => 'git checkout %s',
-    );  
+    );
     my $cmd = $map{$vcs_type} or die "No local revert command available for VCS type '$vcs_type'.\n";
-    
+
     while (my ($path, $files) = each %files_by_path) {
         my $dir = pushd($path) or die "Couldn't chdir $path: $!\n";
         my $args = join ' ', @$files;
-    
+
         do_system(sprintf($cmd, $args));
-    }   
-    
+    }
+
     return;
 }
 

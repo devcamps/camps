@@ -61,7 +61,7 @@ if (!$showpod) {
     if ($opt{config}) {
         # Run install_templates to rebuild templated config files and install them
         install_templates();
-        $operation++;    
+        $operation++;
     }
 
     if ($opt{files}) {

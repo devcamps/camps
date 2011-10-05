@@ -662,6 +662,7 @@ sub set_camp_user_info {
     die "admin '$user' is unknown; aborting!\n"
         unless ref($row) and $row->{admin_name}
     ;
+    $row->{system_user} = $user;
     return $row;
 }
 

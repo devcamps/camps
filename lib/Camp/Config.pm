@@ -362,17 +362,20 @@ sub dbh {
 
 sub db_dsn {
     my ($invocant, $catalog) = @_;
-    return $invocant->smart_variable('SQLDSN', $catalog);
+    return $invocant->smart_variable('SQLDSN', $catalog)
+        || $invocant->databasedefault($catalog, 'DSN');
 }
 
 sub db_user {
     my ($invocant, $catalog) = @_;
-    return $invocant->smart_variable('SQLUSER', $catalog);
+    return $invocant->smart_variable('SQLUSER', $catalog)
+        || $invocant->databasedefault($catalog, 'USER');
 }
 
 sub db_password {
     my ($invocant, $catalog) = @_;
-    return $invocant->smart_variable('SQLPASS', $catalog);
+    return $invocant->smart_variable('SQLPASS', $catalog)
+        || $invocant->databasedefault($catalog, 'PASS');
 }
 
 sub _variable_set {
@@ -385,6 +388,20 @@ sub _variable_set {
     my $target = defined($catalog) ? $invocant->_catalog_variables($catalog) : $invocant->_server_variables;
 
     return $target->{$variable} = $invocant->_substitute_variables($catalog, $value);
+}
+
+sub _databasedefault_set {
+    my ($invocant, $catalog, $name, $value) = @_;
+
+    die "A catalog must be specified\n"
+        if ! defined $catalog;
+
+    die "Catalog '$catalog' is unknown; please register it\n"
+        if ! $invocant->known_catalogs($catalog);
+
+    my $target = $invocant->_catalog_variables($catalog);
+
+    return $target->{$name} = $invocant->_substitute_variables($catalog, $value);
 }
 
 sub _substitute_variables {
@@ -519,6 +536,16 @@ sub _parse_file {
             pop @$scoped_parse_var_flag if $#$scoped_parse_var_flag > $entry_scope;
         }
         elsif (
+            $key eq 'databasedefault'
+            and $val =~ s/^(\w+)(\s+|\s*$)//
+        ) {
+            my $name = $1;
+            if (defined($name) and length($name)) {
+                $val =~ s/\s+$// if defined $val;
+                $invocant->_databasedefault_set($catalog, $name, $val);
+            }
+        }
+        elsif (
             $key eq 'variable'
             and $val =~ s/^(\w+)(\s+|\s*$)//
         ) {
@@ -619,6 +646,23 @@ sub smart_variable {
     return $result;
 }
 
+sub databasedefault {
+    my $invocant = shift;
+    my $catalog = shift;
+    my $all = wantarray && !@_;
+    my $name;
+    $name = shift if !$all;
+    die "Catalog must be specified.\n"
+        if !defined($catalog);
+    die "Catalog '$catalog' is not registered.\n"
+        if !$invocant->known_catalogs($catalog);
+    my $source = $invocant->_catalog_variables($catalog);
+    die "Cannot find databasedefault repository!\n" unless defined $source;
+    return %$source if $all;
+    die "No name specified for retrieval!\n" if ! defined $name;
+    return $source->{$name};
+}
+
 my @global_files = qw(
     interchange.cfg
 );
@@ -711,13 +755,13 @@ Camp::Config - module for determining operating environment and configuration se
 
 =head1 VERSION
 
-3.02
+3.03
 
 =head1 DESCRIPTION
 
 B<Camp::Config> is a basic utility module that understands the camp layout
 of the Camp development environments as well as the layout of production
-environments for both interchange and associated catalogs; it allows for easy
+environments for both Interchange and associated catalogs; it allows for easy
 manipulation of your Perl lib search paths (to include interchange/lib and
 interchange/custom/lib in your scripts without hardcoding paths), and also reads
 standard Interchange configuration files for variables at both the daemon
@@ -852,9 +896,7 @@ or 'system-wide' (meaning the RPM-style IC install expected when the user is 'in
 
 A given Interchange daemon expects to either be "frontside" (public-facing, without
 the in-house management apps activated) or "backside" (in-house facing, with all
-management and inventory functionality available).  This has traditionally been thought
-of as "office", but the terms "frontside" and "backside" are more consistent with the
-way the engineering teams are organized and these roles are discussed.
+management and inventory functionality available).
 
 =item Run environment
 
@@ -948,8 +990,7 @@ is also supported.  The behaviors of I<Variable> and I<ParseVariables>
 are designed to be consistent with Interchange itself, to ensure that variables
 have the same value/meaning within B<Camp::Config> and the various
 IC-space repositories.  Block-style declarations can be used with I<ParseVariables>
-and this module will understand it (though Camp's Interchange does not have support
-for this yet; this is in more recent Interchange versions, however).
+and this module will understand it.
 
 The Interchange-level configuration file(s) B<must> specify meaningful values
 for B<APPLICATION_ROLE> and B<RUN_ENVIRONMENT>.  After parsing the IC-level files
@@ -1120,6 +1161,15 @@ to use the value of the B<catalog()> method.  If I<$catalog> is given I<undef>,
 or if left unspecified and B<catalog()> returns I<undef>, then only the IC variables
 will be consulted.
 
+=item B<databasedefault( $catalog, $name )>
+
+In scalar context: Returns the value (or undef if nonexistent) of I<$name>
+in catalog I<$catalog>'s DatabaseDefault configuration.
+
+In list context, with no I<$name> specified: returns a name/value pair list
+of all DatabaseDefault configuration known within I<$catalog>. This is literally a name/value pair
+list; it cannot be used to change the values within the underlying hash.
+
 =item B<known_catalogs( [ $name ] )>
 
 If optional I<$name> is specified, returns a boolean indicating whether that catalog
@@ -1159,19 +1209,19 @@ each time you call this routine.
 
 =item B<db_dsn( $catalog )>
 
-Returns the value set in the SQLDSN variable for the catalog specified.
+Returns the value set in the SQLDSN variable or DatabaseDefault DSN for the catalog specified.
 I<$catalog> is optional.  It uses the smart_variable subroutine, so all
 of the caveats for that apply here.
 
 =item B<db_user( $catalog )>
 
-Returns the value set in the SQLUSER variable for the catalog specified.
+Returns the value set in the SQLUSER variable or DatabaseDefault USER for the catalog specified.
 It uses the smart_variable subroutine, so all
 of the caveats for that apply here.
 
 =item B<db_password( $catalog )>
 
-Returns the value set in the SQLPASS variable for the catalog specified.
+Returns the value set in the SQLPASS variable or DatabaseDefault PASS for the catalog specified.
 I<$catalog> is optional.  It uses the smart_variable subroutine, so all
 of the caveats for that apply here.
 

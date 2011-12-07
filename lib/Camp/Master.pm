@@ -701,15 +701,15 @@ sub camp_user {
 }
 
 sub camp_user_obj {
-    die "No camp user set!\n"
+    die "No camp user object set!\n"
         unless defined $camp_user_obj
     ;
     return $camp_user_obj;
 }
 
 sub camp_user_info {
-    die "No camp user set!\n"
-        unless defined $camp_user_obj
+    die "No camp user info set!\n"
+        unless defined $camp_user_info
     ;
     return $camp_user_info;
 }

@@ -16,7 +16,7 @@ use DBI;
 use Exporter;
 use base qw(Exporter);
 
-our $VERSION = '3.02';
+our $VERSION = '3.03';
 
 @Camp::Master::EXPORT = qw(
     base_path
@@ -80,7 +80,7 @@ Camp::Master - library routines for management of camps
 
 =head1 VERSION
 
-3.02
+3.03
 
 =cut
 
@@ -2933,7 +2933,7 @@ sub camp_type_list {
 }
 
 sub _camp_list_sql {
-    return _camp_db_type_dispatcher( '_camp_list_sql' )->( @_ );
+    return _db_type_dispatcher( '_camp_list_sql' )->( @_ );
 }
 
 sub _camp_list_sql_pg {

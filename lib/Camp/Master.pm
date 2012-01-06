@@ -746,7 +746,7 @@ sub _db_type_dispatcher {
 }
 
 sub get_next_camp_number {
-    return _camp_db_type_dispatcher( '_get_next_camp_number' )->( @_ );
+    return _db_type_dispatcher( '_get_next_camp_number' )->( @_ );
 }
 
 sub _get_next_camp_number_pg {

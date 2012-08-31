@@ -2546,7 +2546,7 @@ sub _prepare_camp_database_roles {
     # Again, no effect on Pg, but significant to MySQL.
     _db_post_roles_trigger( $SESSION, $conf );
 
-    close $SESSION or die "Error piping command to psql: $!\n";
+    close $SESSION or die "Error piping command to database: $!\n";
     return 1;
 }
 

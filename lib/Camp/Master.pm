@@ -603,7 +603,7 @@ sub has_rails {
 sub has_ic {
     die "Cannot call has_ic() until package has been initialized!\n" unless $initialized;
     return $has_ic if defined $has_ic;
-    return $has_ic = $edits{'interchange/bin/interchange'} ? 1 : 0;
+    return $has_ic = $edits{'interchange/bin/interchange'} || $edits{'local/bin/interchange'} ? 1 : 0;
 }
 
 sub base_user_path {

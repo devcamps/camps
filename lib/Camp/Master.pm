@@ -2967,8 +2967,9 @@ sub camp_list {
     $where = '';
 
     if ($opt{type}) {
-        $where .= "\n\tAND c.camp_type = ?";
-        push @args, $opt{type};
+        my @types = ref $opt{type} eq 'ARRAY' ? @{$opt{type}} : $opt{type};
+        $where .= "\n\tAND c.camp_type IN (" . join(',', ('?') x @types) . ")";
+        push @args, @types;
     }
     if ($opt{user}) {
         $where .= "\n\tAND c.username = ?";

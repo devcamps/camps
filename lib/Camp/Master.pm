@@ -591,7 +591,7 @@ sub has_app {
     die "Cannot call has_app() until package has been initialized!\n" unless $initialized;
     my $conf = config_hash();
     return $has_app if defined $has_app;
-    return $has_app = (grep { defined and /\S/ } map { $conf->{"app_$_"} } qw( start stop )) ? 1 : 0;
+    return $has_app = (grep { defined and /\S/ } map { $conf->{"app_$_"} } qw( init start stop )) ? 1 : 0;
 }
 
 sub has_rails {
@@ -1016,6 +1016,12 @@ Rendered Apache ProxyBalancer member configuration directives suitable for place
 directly within a virtualhost's <Proxy balancer://...>...</Proxy> container.  Defaults
 to using three mongrel listeners with ports incremented by one starting at the
 mongrel_base_port.
+
+=item app_init
+
+When using an application server other than those natively supported in camps, set this to the command to initialize your application server. This will run only once during camp creation. For example (using a custom init script):
+
+ __CAMP_PATH__/bin/init-magento
 
 =item app_start
 
@@ -2713,6 +2719,7 @@ sub server_control {
     ) = @opt{qw( action service )};
     $service = (has_rails() ? 'rails' : 'ic') if ! defined $service;
     my %actions = map { $_ => $_ } qw(
+        init
         restart
         stop
         start

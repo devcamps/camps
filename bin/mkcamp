@@ -33,7 +33,7 @@ if ($opt{help}) {
     my $types;
     eval {
         $types = join '', map { <<EOL } camp_type_list();
-            $_->{type}: $_->{description}
+                $_->{type}: $_->{description}
 EOL
     };
     $types = "Could not find types: $@" if $@;
@@ -141,6 +141,10 @@ else {
     server_control(
         service => 'all',
         action  => 'restart',
+    );
+    server_control(
+        service => 'app',
+        action  => 'init',
     );
 }
 

@@ -1158,9 +1158,18 @@ makes these variables required for MySQL deployments.
 
 =back
 
+=item db_source_scripts_parse
+
+Scripts listed in C<db_source_scripts> are normally processed verbatim. List again here any scripts
+here that you would like to first have preprocessed with variable token substitution. This is useful
+if, for example, you would like to reference the camp number or camp owner's name in the script.
+
+The paths should be specified identically to how they're listed in C<db_source_scripts> or they will not
+be tokenized.
+
 =item db_mysql_scripts (I<MySQL only>)
 
-Space-separated list of paths to SQLfiles that should be run upon preparing a camp's MySQL database server,
+Space-separated list of paths to SQL files that should be run upon preparing a camp's MySQL database server,
 prior to processing the roles for that database; this gives an opportunity to initialize the database to
 a known set of users/permissions, for instance, or initalize things in other ways needed prior to role
 creation.
@@ -1466,6 +1475,9 @@ sub config_hash {
         $conf_hash->{db_source_scripts} = [
             split /[\s,]+/, $conf_hash->{db_source_scripts} || ''
         ];
+        $conf_hash->{db_source_scripts_parse} = {
+            map { $_ => 1 } (split /[\s,]+/, $conf_hash->{db_source_scripts_parse})
+        };
         $conf_hash->{db_dbnames} = [
             split /[\s,]+/, $conf_hash->{db_dbnames} || ''
         ];
@@ -2598,9 +2610,22 @@ sub _import_camp_data {
     my ($sources, $conf) = @_;
     # Import data
     for my $script (@$sources) {
-        my $script_file = File::Spec->file_name_is_absolute($script)
-            ? $script
-            : File::Spec->catfile(type_path(), $script);
+        my $script_file = $script;
+        if ($conf_hash->{db_source_scripts_parse}{$script}) {
+            print "Tokenizing script '$script'\n";
+            # slurp source script
+            local $/;
+            local @ARGV = $script_file;
+            my $src = <>;
+            # tokenize into a temporary file
+            my $tmpfile = File::Temp->new( DIR => $conf->{db_tmpdir}, UNLINK => 0 );
+            $tmpfile->print(substitute_hash_tokens($src, $conf));
+            $tmpfile->close;
+            $script_file = $tmpfile;
+        }
+        $script_file = File::Spec->file_name_is_absolute($script_file)
+            ? $script_file
+            : File::Spec->catfile(type_path(), $script_file);
         my $cmd = _import_db_cmd($script_file, $conf);
         print "Processing script '$script':\n$cmd\n";
         system($cmd) == 0 or die "Error importing data\n";

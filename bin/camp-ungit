@@ -1,0 +1,98 @@
+#!/usr/local/bin/perl
+
+use strict;
+use warnings;
+
+use lib '/home/camp/lib';
+
+use Camp::Master;
+use Cwd;
+use Getopt::Long;
+
+*STDOUT->autoflush(1);
+*STDERR->autoflush(1);
+
+die "Don't run this as root!\n" if $< == 0;
+
+my $USAGE=<<EOH;
+Usage: camp-ungit [number]
+
+If the camp number is not specified, it may be inferred from the
+current working directory.
+
+Options:
+--help, -h         Show this help.
+EOH
+
+my %opt;
+GetOptions(
+    \%opt,
+    "help|h",
+) or die $USAGE;
+
+if ($opt{help}) {
+    print $USAGE;
+    exit;
+}
+
+my $camp_number;
+
+if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
+    # first command-line argument can be camp number
+    $camp_number = shift;
+}
+
+unless (defined $camp_number and $camp_number =~ /\A\d+\z/) {
+    # if not specified, get current camp # from current working directory
+    my $dir = getcwd();
+    die "current working directory doesn't exist!\n" unless $dir;
+    $dir =~ m{/camp(\d+)} and $camp_number = $1;
+}
+
+initialize(camp => $camp_number);
+
+unless (defined $camp_number) {
+    die "$0: couldn't determine camp; change cwd or specify in command line\n";
+}
+
+my $conf = config_hash();
+
+my $camp_path = $conf->{path};
+my $tmpdir = File::Spec->catfile($ENV{HOME}, 'tmp');
+my $ungit_port = 8800 + $camp_number;
+
+exec 'ungit', "--port=$ungit_port", '--urlBase=http://camp.citypass.com', 'no-bugtracking', 'no-sendUsageStatistics', "--logDirectory=$tmpdir", '--logGitCommands', '--logGitOutput', '--no-launchBrowser', "--forcedLaunchPath=$camp_path", 'no-noFFMerge', 'no-autoFetch';
+
+
+=pod
+
+=head1 NAME
+
+camp-ungit - invoke ungit in a camp environment
+
+=head1 VERSION
+
+1.0
+
+=head1 AUTHOR
+
+Jon Jensen E<lt>jon@endpoint.comE<gt>
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright (C) 2013 End Point Corporation, http://www.endpoint.com/
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see: http://www.gnu.org/licenses/
+
+=cut

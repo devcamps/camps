@@ -2502,7 +2502,9 @@ sub _render_database_config {
             keys %$conf
         },
     );
-    open my $CONF, '>>', $conf->{db_conf} or die "Could not append to $conf->{db_conf}: $!\n";
+    # my.cnf is private per camp, so needs to be replaced at refresh time
+    my $open_type = ($conf->{db_type} eq 'mysql') ? '>' : '>>';
+    open my $CONF, $open_type, $conf->{db_conf} or die "Could not append to $conf->{db_conf}: $!\n";
     print $CONF $template;
     close $CONF or die "Couldn't close $conf->{db_conf}: $!\n";
     $conf->{_did_render_database_config} = 1;

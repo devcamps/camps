@@ -1476,7 +1476,7 @@ sub config_hash {
             split /[\s,]+/, $conf_hash->{db_source_scripts} || ''
         ];
         $conf_hash->{db_source_scripts_parse} = {
-            map { $_ => 1 } (split /[\s,]+/, $conf_hash->{db_source_scripts_parse})
+            map { $_ => 1 } (split /[\s,]+/, $conf_hash->{db_source_scripts_parse} || '')
         };
         $conf_hash->{db_dbnames} = [
             split /[\s,]+/, $conf_hash->{db_dbnames} || ''

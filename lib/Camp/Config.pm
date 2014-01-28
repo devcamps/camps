@@ -9,7 +9,7 @@ use DBI;
 use Safe;
 use Scalar::Util qw/blessed/;
 
-our $VERSION = '3.02';
+our $VERSION = '3.03';
 
 my %package_singletons;
 my @setting_names = qw(
@@ -257,13 +257,29 @@ sub _set_up_adhoc_layout {
 sub _validate_adhoc_user {
     my $invocant = shift;
     my $obj = getpwuid($>);
-    die sprintf(
-        "Invalid user; must run as interch, not %s\n",
-        $obj->name
-    ) if $obj->name ne 'interch';
+
+    my %valid_user;
+    @valid_user{ $invocant->adhoc_user_list } = ();
+
+    unless (exists $valid_user{ $obj->name }) {
+        my @vu = sort keys %valid_user;
+        my $run_as = @vu > 1
+            ? sprintf ('one of (%s)', join (', ', @vu))
+            : $vu[0]
+        ;
+        die sprintf(
+            "Invalid user; must run as %s, not %s\n",
+            $run_as,
+            $obj->name,
+        );
+    }
 
     $invocant->_setting_set('user', $obj);
     return $invocant->_setting_get('user');
+}
+
+sub adhoc_user_list {
+    return qw/interch/;
 }
 
 sub adhoc_base_path {
@@ -1256,7 +1272,7 @@ Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2011 End Point Corporation, http://www.endpoint.com/
+Copyright (C) 2006-2014 End Point Corporation, http://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

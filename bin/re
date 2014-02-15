@@ -12,22 +12,54 @@ use Camp::Master;
 
 die "Don't run this as root!\n" if $> == 0;
 
+my @services = qw( httpd app db ic rails );
+
 my %conf;
 GetOptions(
     \%conf,
     qw(
+        help|h
         stop
         start
         restart
         all
-        user
-    )
+        user        
+    ),
+    @services,
 );
 
 my @camp_numbers;
 my $all_user_camps = $conf{user};
 
 @camp_numbers = grep { m/\A\d+\z/ } @ARGV;
+
+my $services_options = join('|', (map { "--$_" } @services));
+my $USAGE = <<"EOU";
+Camp restart/start/stop script
+
+Usage: re [--help|-h] [--all|$services_options] [--stop|--start|--restart] [--user] [CAMP_NUMBER]
+
+The re command is for convience to restart services for your camp.  It can also
+be used to start or stop services.
+
+Default action is --restart.
+
+By default only application servers are acted on.
+Add the --all option to also act on the database and webserver.
+Other services may be specified with these options: $services_options
+
+Camp number is inferred from a camp's current working directory if available.
+
+If the --user flag is passed, all of the user's camps are affected.
+
+Example: re 44
+
+EOU
+
+if ($conf{help} || $conf{h}) {
+    die $USAGE;
+}
+
 
 if ($all_user_camps) {
     @camp_numbers =
@@ -43,22 +75,7 @@ unless (@camp_numbers) {
 }
 
 unless (@camp_numbers) {
-    die <<'EOF';
-camp restart/start/stop script
-
-Usage: re [--stop|start|restart] [--all] [<number>+ | --user ]
-
-Default action is --restart.
-
-By default only application servers are acted on.
-Add the --all option to also act on the database and webserver.
-
-Camp number is inferred from a camp's current working directory if available.
-
-If the --user flag is passed, all of the user's camps are affected.
-
-Example: re 44
-EOF
+    die $USAGE;
 }
 
 
@@ -84,6 +101,11 @@ for my $camp_number (@camp_numbers) {
             action  => $action,
             service => 'all',
         );
+    }
+    elsif (my @services_to_act_on = grep { $conf{$_} && $_ } @services) {
+        for my $service (@services_to_act_on) {
+            server_control( action => $action, service => $service );
+        }
     }
     else {
         if (has_rails()) {
@@ -120,7 +142,7 @@ Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2011 End Point Corporation, http://www.endpoint.com/
+Copyright (C) 2006-2014 End Point Corporation, http://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

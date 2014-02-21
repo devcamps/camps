@@ -56,10 +56,7 @@ Example: re 44
 
 EOU
 
-if ($conf{help} || $conf{h}) {
-    die $USAGE;
-}
-
+die $USAGE  if ($conf{help});
 
 if ($all_user_camps) {
     @camp_numbers =
@@ -102,7 +99,7 @@ for my $camp_number (@camp_numbers) {
             service => 'all',
         );
     }
-    elsif (my @services_to_act_on = grep { $conf{$_} && $_ } @services) {
+    elsif (my @services_to_act_on = grep { $conf{$_} } @services) {
         for my $service (@services_to_act_on) {
             server_control( action => $action, service => $service );
         }

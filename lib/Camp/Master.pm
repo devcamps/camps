@@ -2482,7 +2482,8 @@ EOF
 
 sub _initialize_camp_database_mysql {
     my $conf = shift;
-    my $cmd = "mysql_install_db --datadir=$conf->{db_data}";
+    _render_database_config($conf)  unless ($conf->{_did_render_database_config});
+    my $cmd = "mysql_install_db --datadir=$conf->{db_data} --defaults-file=$conf->{db_conf}";
     print "Preparing database instance:\n$cmd\n";
     system($cmd) == 0 or die "Error executing mysql_install_db!\n";
     return 1;

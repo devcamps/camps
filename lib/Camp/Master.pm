@@ -58,6 +58,7 @@ our $VERSION = '3.03';
     roles
     roles_path
     role_sql
+    run_post_mkcamp_command
     server_control
     set_camp_comment
     set_camp_user
@@ -1040,6 +1041,10 @@ Command to stop your application server. An example for Ruby's Unicorn:
 Command to restart your application server. An example for Ruby's Unicorn:
 
  pid=`cat __CAMP_PATH__/var/run/unicorn.pid 2>/dev/null` && kill -HUP $pid || __CAMP_PATH__/bin/start-unicorn
+
+=item post_mkcamp_command
+
+Command to be run after the mkcamp process is completed.
 
 =item db_type
 
@@ -3031,6 +3036,13 @@ sub camp_list {
     }
     $sth->finish;
     return @result;
+}
+
+sub run_post_mkcamp_command {
+    my $conf = config_hash();
+    my $cmd = $conf->{post_mkcamp_command};
+    $cmd and return do_system_soft($cmd) == 0;
+    return;
 }
 
 1;

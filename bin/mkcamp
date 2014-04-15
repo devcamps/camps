@@ -145,7 +145,7 @@ else {
     server_control(
         service => 'app',
         action  => 'init',
-    );
+    ) if has_app();
 }
 
 
@@ -158,6 +158,7 @@ however is appropriate.
 END
 }
 
+run_post_mkcamp_command();
 
 =pod
 

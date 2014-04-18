@@ -14,52 +14,16 @@ use Getopt::Long;
 
 die "Don't run this as root!\n" if $< == 0;
 
-my (@attribute_list, %opt, @all_fields, @requested_fields);
 
-# populate initial attributes for Getopt based on lookup table.
-my %queryable_attributes = (
-    camp_number => 'get',
-    camp_type   => 'get',
-    vcs_type    => 'get',
-    username    => 'get',
-    comment     => 'getset',
+# Map of Getop options to camp database fields
+my %option_to_attribute = (
+    'number'  => 'camp_number',
+    'name'    => 'username',
+    'type'    => 'camp_type',
+    'vcs'     => 'vcs_type',
+    'comment' => 'comment',
 );
-
-my %attribute_aliases = (
-    number => 'camp_number',
-    num    => 'camp_number',
-    type   => 'camp_type',
-    name   => 'username',
-    vcs    => 'vcs_type',
-);
-
-my %set_synonyms = (
-    comment => 'm',
-);
-
-
-@all_fields = sort keys %queryable_attributes;
-
-while (my ($attribute, $type) = each %queryable_attributes) {
-    my @gets = $attribute;
-
-    # construct a list of aliases
-    while (my ($alias, $aliased_attribute) = each %attribute_aliases) {
-        push @gets, $alias if $aliased_attribute eq $attribute;
-    }
-
-    my @sets = map { "set-$_" } @gets;
-
-    for ($set_synonyms{$attribute}) {
-        push @sets, $_ if $_;
-    }
-
-    my $get_clause = join "|", @gets;
-    my $set_clause = join "|", @sets;
-
-    push @attribute_list, $get_clause     if $type =~ /get/;
-    push @attribute_list, "$set_clause=s" if $type =~ /set/;
-}
+my @options_list = keys %option_to_attribute;
 
 my $USAGE=<<EOH;
 Usage: camp-info [options] [number]
@@ -72,6 +36,7 @@ Options:
 --comment          Show the comment for the camp.
 --set-comment, -m  Set the comment for the camp.
 --number           Show the camp number for the camp.
+--name             Show the username for the camp.
 --type             Show the camp type for the camp.
 --vcs              Show the version control system in use for the camp.
 --quiet, -q        Suppress the display of informational headers.
@@ -80,14 +45,16 @@ Options:
 --help, -h         Show this help.
 EOH
 
+my %opt;
 GetOptions(
     \%opt,
-    "help|h",
-    "quiet|q",
-    "no-newline|n",
-    "separator|sep=s",
-    "all|a",
-    @attribute_list,
+    'help|h',
+    'quiet|q',
+    'no-newline|n',
+    'separator|s=s',
+    'all|a',
+    'set-comment|m=s',
+    @options_list,
 ) or die $USAGE;
 
 if ($opt{help}) {
@@ -110,39 +77,34 @@ if (!defined $camp_number) {
     die "$0: couldn't determine camp; specify in command line or CAMP environment variable\n";
 }
 
+# If we set the comment, no output
+if ($opt{'set-comment'}) {
+    Camp::Master::set_camp_comment($camp_number, $opt{'set-comment'});
+    exit;
+}
+
 my $info = Camp::Master::get_camp_info( $camp_number );
-my $set_attribute;
 
 # TODO: make the order of the attribute flags passed match the order of the output
-foreach my $attribute (keys %queryable_attributes) {
-    if ($opt{$attribute}) {
-        push @requested_fields, $attribute;
-    }
-    if ($opt{"set-$attribute"}) {
-        # TODO: generalize this; only one settable attribute now, so we're weenie-ing out.
-        warn "set-$attribute not supported" and next unless $attribute eq 'comment';
-
-        $set_attribute = 1;
-
-        # TODO: check user privs to change the camp...
-        # update the comment field;
-        Camp::Master::set_camp_comment($camp_number, $opt{'set-comment'});
+my @requested_fields;
+foreach my $option (@options_list) {
+    if ($opt{$option}) {
+        push @requested_fields, $option_to_attribute{$option};
     }
 }
 
-@requested_fields = @all_fields unless @requested_fields || $set_attribute;
+@requested_fields = values %option_to_attribute unless @requested_fields;
 
 # actual output based on passed params
 my $sep = $opt{separator} || qq{\n};
 
-if (!$set_attribute) {
-    print join $sep,
-        map {
-            ($display_output_headers ? "$_: " : '')
+print join $sep,
+    map {
+	($display_output_headers ? "$_: " : '')
             . $info->{$_}
-        } @requested_fields;
-    print "\n" unless $opt{'no-newline'};
-}
+    } @requested_fields;
+print "\n" unless $opt{'no-newline'};
+
 
 
 =pod
@@ -153,15 +115,16 @@ camp-info - camp information getter/setter
 
 =head1 VERSION
 
-3.02
+3.03
 
 =head1 AUTHOR
 
+Spencer Christensen E<lt>schristensen@endpoint.comE<gt>,
 Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2011 End Point Corporation, http://www.endpoint.com/
+Copyright (C) 2006-2014 End Point Corporation, http://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

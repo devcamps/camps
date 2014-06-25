@@ -678,11 +678,22 @@ sub get_camp_info {
 sub get_all_camp_info {
     my $username = shift;
     my $dbh = dbh();
-    my $sth = $dbh->prepare('SELECT camp_number,camp_type,create_date,comment FROM camps WHERE username = ? ORDER BY camp_number');
-    my $rc  = $sth->execute($username);
-    my $out = "Camp #\tCamp Type\tCamp Creation Date\t\tComment\n";
+    my $sth;
+    my $out = '';
+    if ($username) {
+        $out = "Camp #\tCamp Type\tCamp Creation Date\t\tComment\n";
+        $sth = $dbh->prepare('SELECT * FROM camps WHERE username = ? ORDER BY camp_number');
+        $sth->execute($username);
+    }
+    else {
+        $out = "Camp #\tUsername\tCamp Type\tCamp Creation Date\t\tComment\n";
+        $sth = $dbh->prepare('SELECT * FROM camps ORDER BY camp_number');
+        $sth->execute();
+    }
+
     while ( my $row = $sth->fetchrow_hashref() ) {
-        $out .= "   $row->{camp_number}\t$row->{camp_type}\t\t$row->{create_date}\t\t$row->{comment}\n";
+        my $camp_username = ($username) ? '' : "\t$row->{username}";
+        $out .= "   $row->{camp_number}${camp_username}\t$row->{camp_type}\t\t$row->{create_date}\t\t$row->{comment}\n";
     }
     $sth->finish();
     return $out;

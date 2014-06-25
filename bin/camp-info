@@ -32,6 +32,7 @@ If the camp number is not specified, it may be inferred from the CAMP
 environment variable or the current working directory.
 
 Options:
+-A                 Show information for all camps on the system.
 --all, -a          Show the camp information for all camps for this user.
 --comment          Show the comment for the camp.
 --set-comment, -m  Set the comment for the camp.
@@ -62,9 +63,17 @@ if ($opt{help}) {
     exit;
 }
 
+# All camps just for this user
 if ($opt{all}) {
     my $username = getpwuid($<);
     my $info = Camp::Master::get_all_camp_info( $username );
+    print $info;
+    exit;
+}
+
+# All camps on system
+if ($opt{A}) {
+    my $info = Camp::Master::get_all_camp_info();
     print $info;
     exit;
 }

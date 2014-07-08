@@ -1416,10 +1416,11 @@ sub config_hash {
             unless defined $camp_number and $camp_number =~ /^\d+$/;
         $conf_hash = {
             %{ camp_user_info() },
-            number  => $camp_number,
-            name    => "camp$camp_number",
-            root    => camp_user_obj()->dir(),
-            type    => type(),
+            number      => $camp_number,
+            '0number'   => sprintf('%02d',$camp_number),
+            name        => "camp$camp_number",
+            root        => camp_user_obj()->dir(),
+            type        => type(),
             type_path   => type_path(),
             base_path   => base_path(),
         };

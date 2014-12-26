@@ -691,11 +691,18 @@ sub get_all_camp_info {
         $sth->execute();
     }
 
+    my @rows;
+    my $username_maxlen = 0;
     while ( my $row = $sth->fetchrow_hashref() ) {
-        my $camp_username = ($username) ? '' : "\t$row->{username}";
-        $out .= "   $row->{camp_number}${camp_username}\t$row->{camp_type}\t\t$row->{create_date}\t\t$row->{comment}\n";
+        $username_maxlen = length($row->{username})  if ($row->{username} && length($row->{username}) > $username_maxlen);
+        push @rows, $row;
     }
     $sth->finish();
+    my $fmt = ($username) ? "   %s\t%s\t\t%s\t\t%s\n" : "   %s\t%-${username_maxlen}s\t%s\t\t%s\t\t%s\n";
+    my @fields = ($username) ? qw/camp_number camp_type create_date comment/ : qw/camp_number username camp_type create_date comment/;
+    for my $r (@rows) {
+        $out .= sprintf($fmt, @{$r}{@fields});
+    }
     return $out;
 }
 

@@ -578,6 +578,13 @@ sub _parse_file {
                 $invocant->_parse_file($catalog, $_);
             }
         }
+        elsif (
+            $key eq 'variabledatabase'
+            and $val =~ /\b(\w+)\b/
+        ) {
+            $invocant->_parse_variable_file($catalog, $1);
+        }
+
 
         $mark_type = $key = $val = $marker = undef;
     }
@@ -609,6 +616,36 @@ sub _ifdef {
         }
     }
     return $not ? !$result : $result;
+}
+
+sub _parse_variable_file {
+    my ($invocant, $catalog, $file) = @_;
+
+    if (-r "products/$file.txt") {
+        $file = "products/$file.txt";
+    }
+    else {
+        print STDERR "VariableDatabase $file not found at products/$file.txt.\n"
+            if $Camp::Config::DEBUG;
+    }
+
+    die "Catalog '$catalog' is unknown; please register it"
+        if defined $catalog
+            and ! $invocant->known_catalogs($catalog);
+
+    print STDERR "Parsing file $file" . (defined($catalog) && " catalog $catalog") . "\n"
+        if $Camp::Config::DEBUG;
+
+    open my $CONF, '<', $file or die "Can't open variable file '$file' from directory '" . Cwd::getcwd() . "': $!\n";
+    <$CONF>;  # first line is headers
+    while (my $line = <$CONF>) {
+        my ($key, $val, $group) = split(/\t/, $line, 3);
+        $val =~ s/\s+$// if defined $val;
+        $val = $invocant->_substitute_variables($catalog, $val);
+        $invocant->_variable_set($catalog, $key, $val);
+    }
+    close($CONF);
+    return;
 }
 
 sub register_catalog {

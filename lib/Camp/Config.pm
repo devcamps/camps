@@ -625,15 +625,16 @@ sub _parse_variable_file {
         $file = "products/$file.txt";
     }
     else {
-        print STDERR "VariableDatabase $file not found at products/$file.txt.\n"
+        warn "VariableDatabase $file not found at products/$file.txt.\n"
             if $Camp::Config::DEBUG;
+	return;
     }
 
     die "Catalog '$catalog' is unknown; please register it"
         if defined $catalog
             and ! $invocant->known_catalogs($catalog);
 
-    print STDERR "Parsing file $file" . (defined($catalog) && " catalog $catalog") . "\n"
+    warn "Parsing file $file" . (defined($catalog) && " catalog $catalog") . "\n"
         if $Camp::Config::DEBUG;
 
     open my $CONF, '<', $file or die "Can't open variable file '$file' from directory '" . Cwd::getcwd() . "': $!\n";

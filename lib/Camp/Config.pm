@@ -9,7 +9,7 @@ use DBI;
 use Safe;
 use Scalar::Util qw/blessed/;
 
-our $VERSION = '3.03';
+our $VERSION = '3.04';
 
 my %package_singletons;
 my @setting_names = qw(
@@ -627,7 +627,7 @@ sub _parse_variable_file {
     else {
         warn "VariableDatabase $file not found at products/$file.txt.\n"
             if $Camp::Config::DEBUG;
-	return;
+        return;
     }
 
     die "Catalog '$catalog' is unknown; please register it"
@@ -809,7 +809,7 @@ Camp::Config - module for determining operating environment and configuration se
 
 =head1 VERSION
 
-3.03
+3.04
 
 =head1 DESCRIPTION
 
@@ -1310,7 +1310,7 @@ Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2014 End Point Corporation, http://www.endpoint.com/
+Copyright (C) 2006-2015 End Point Corporation, https://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

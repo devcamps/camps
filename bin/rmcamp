@@ -29,6 +29,11 @@ server_control(action => 'stop', service => 'all');
 
 vcs_remove_camp();
 
+if ($conf_hash->{use_lmv_database_snapshots}) {
+    system("/bin/sudo /home/camp/bin/camp_lvm remove --number=$conf_hash->{number} --username=$conf_hash->{system_user}");
+}
+
+
 do_system_soft('rm', '-rf', $conf_hash->{path});
 
 print "Removing entry from master camp database\n";

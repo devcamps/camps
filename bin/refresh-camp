@@ -47,7 +47,6 @@ if (!$showpod) {
     ;
 
     if ($opt{vcs}) {
-        # Note that vcs_refresh implications are somewhat different for SVN versus SVK.
         vcs_refresh();
         $operation++;
     }
@@ -99,7 +98,7 @@ refresh-camp - refresh various components within a camp
 
 =head1 VERSION
 
-3.02
+3.05
 
 =head1 SYNOPSIS
 
@@ -134,8 +133,6 @@ Refresh the non-versioned files of the specified camp.
 
 Perform an update on your camp for the version control system appropriate to that camp.
 
-Note that for svn this corresponds to a simple "up", while for svk it is a "pull".
-
 =back
 
 Note that while use of "--usage" will short-circuit anything else, the other
@@ -166,11 +163,11 @@ in these paths would be lost.
 
 =head1 AUTHOR
 
-Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
+Ethan Rowe and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2011 End Point Corporation, http://www.endpoint.com/
+Copyright (C) 2006-2015 End Point Corporation, https://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

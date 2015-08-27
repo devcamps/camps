@@ -41,7 +41,6 @@ CREATE TABLE camps (
 ) ENGINE=InnoDB;
 
 INSERT INTO vcs_types VALUES ('svn', 'Subversion');
-INSERT INTO vcs_types VALUES ('svk', 'SVK');
 INSERT INTO vcs_types VALUES ('git', 'Git');
 
 /* Since MySQL doesn't have sequences, and it's quite difficult to have a reliable query that finds the lowest

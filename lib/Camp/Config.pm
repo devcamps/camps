@@ -9,7 +9,7 @@ use DBI;
 use Safe;
 use Scalar::Util qw/blessed/;
 
-our $VERSION = '3.04';
+our $VERSION = '3.05';
 
 my %package_singletons;
 my @setting_names = qw(
@@ -809,7 +809,7 @@ Camp::Config - module for determining operating environment and configuration se
 
 =head1 VERSION
 
-3.04
+3.05
 
 =head1 DESCRIPTION
 
@@ -1306,7 +1306,7 @@ This module has tests. It also probably has bugs. It is, after all, software.
 
 =head1 AUTHOR
 
-Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
+Ethan Rowe and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 

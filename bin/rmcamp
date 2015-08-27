@@ -45,7 +45,7 @@ rmcamp - remove a camp
 
 =head1 VERSION
 
-3.02
+3.05
 
 =head1 SYNOPSIS
 
@@ -53,17 +53,17 @@ rmcamp - remove a camp
 
 =head1 DESCRIPTION
 
-The specified camp's services (i.e. Apache, PostgreSQL/MySQL, Rails/Interchange) are stopped, the camp is unregistered from the master camp database, and the camp's files are deleted from the filesystem. If SVK is used, the workspace for the camp will be cleared.
+The specified camp's services (i.e. Apache, PostgreSQL/MySQL, Rails/Interchange) are stopped, the camp is unregistered from the master camp database, and the camp's files are deleted from the filesystem.
 
 To safely remove a camp, please check for changes before using C<rmcamp>. For your code, you can use C<git status>. If you've made database schema changes, you need to make sure that you have created appropriate migrations files and committed them. For actual data changes, you may need to dump and load as appropriate (or write a C<rake> task to handle it).
 
 =head1 AUTHOR
 
-Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
+Ethan Rowe and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2011 End Point Corporation, http://www.endpoint.com/
+Copyright (C) 2006-2015 End Point Corporation, https://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

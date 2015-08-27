@@ -49,7 +49,6 @@ CREATE TABLE camps (
 
 COPY vcs_types (vcs_type, description) FROM stdin;
 svn	Subversion
-svk	SVK
 git	Git
 \.
 

@@ -63,7 +63,7 @@ echo $quote;
 
         </div>
 
-        <p id="copy">© 2006–<?php echo date("Y") ?> <a href="http://www.endpoint.com/">End Point Corporation</a></p>
+        <p id="copy">© 2006–<?php echo date("Y") ?> <a href="https://www.endpoint.com/">End Point Corporation</a></p>
 
         <script type="text/javascript">
             var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");

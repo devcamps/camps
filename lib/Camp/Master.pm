@@ -16,7 +16,7 @@ use DBI;
 use Exporter;
 use base qw(Exporter);
 
-our $VERSION = '3.03';
+our $VERSION = '3.05';
 
 @Camp::Master::EXPORT = qw(
     base_path
@@ -62,8 +62,6 @@ our $VERSION = '3.03';
     server_control
     set_camp_comment
     set_camp_user
-    svk_local_path
-    svk_mirror_path
     svn_repository
     type
     type_path
@@ -81,7 +79,7 @@ Camp::Master - library routines for management of camps
 
 =head1 VERSION
 
-3.03
+3.05
 
 =cut
 
@@ -174,7 +172,7 @@ sub vcs_type_is_set {
 
 sub validate_vcs_type {
     my $new_type = shift;
-    my ($type) = ($new_type =~ /\A(svn|svk|git)\z/);
+    my ($type) = ($new_type =~ /\A(svn|git)\z/);
     return $type;
 }
 
@@ -1292,10 +1290,10 @@ The organization name to use for your camp's SSL certificate (defaults to 'End P
 
 =item vcs_default_type
 
-Specifies the default version control system to use for the camp type.  This is optional, but is
-certainly highly convenient for camp users and makes things easier to manage, as providing this
-means that users don't typically need to question whether they should be using a Subversion-based
-VCS type ('svn' or 'svk') versus a Git type ('git').
+Specifies the default version control system to use for the camp type. This is optional, but is
+certainly highly convenient for camp users and makes things easier to manage. The main reason to
+use a different version control system would be for using git-svn in a camp against a Subversion
+repository.
 
 If this is set for a camp type, then it is not necessary for a user to specify their VCS type
 when creating an instance of that camp.  The value of I<vcs_default_type> has no bearing on existing
@@ -1368,18 +1366,6 @@ Default: I<type_path> . '/repo.git'
 There is no default value for I<repo_path_git>, so you cannot count on its presence unless you
 know what you're doing and are working with a camp type that definitely specifies a value for it.
 
-=item repo_mirror
-
-Specifies the SVK mirror path used for mirroring the master SVN repository.  The convention is
-for the mirror and working paths to live under the default SVK depot, meaning that they should
-begin with '//' rather than '/some_depot_name/'.
-
-If not specified, the SVK mirroring path used will be:
-
- '//mirror/' . I<type> . '/trunk'
-
-Like I<repo_path>, there is no default value for this particular setting.
-
 =item git_clone_options
 
 Options to pass literally to the "git clone ..." call when building a new camp and cloning from
@@ -1410,18 +1396,6 @@ checkout branch "bar".
 This also means that if the desired branch has forward slashes in the name, you'll need to include
 the remote name as the first portion of your I<git_branch> value.  So, if you want a branch named
 "releases/1.1", you would need a I<git_branch> value of "origin/releases/1.1".
-
-=item repo_svk_local
-
-Specifies the SVK local working path used per camp; when creating a new camp using the 'svk'
-version control system option, a branch is always created from the main mirror path (see
-I<repo_mirror>) to this local path.  The local path is assumed to be specific per camp.
-
-If not specified, the SVK local working path will be:
-
- '//local/' . I<type> . '/' . I<name>
-
-Like I<repo_path>, there is no default value for this particular setting.
 
 =back
 
@@ -1688,69 +1662,11 @@ sub svn_update {
     return do_system('svn up');
 }
 
-sub svk_mirror_path {
-    my $mirror = config_hash()->{repo_mirror};
-    $mirror = '//mirror/' . type() . '/trunk'
-        unless defined($mirror) and $mirror =~ /\S/;
-    return $mirror;
-}
-
-sub svk_local_path {
-    my $conf = config_hash();
-    my $local = $conf->{repo_svk_local};
-    unless (defined($local) and $local =~ /\S/) {
-        my $name = $conf->{name};
-        die "svk_local_path called when camp name not yet defined!\n"
-            unless $name and length($name);
-        $local = '//local/' . type() . "/$name";
-    }
-    return $local;
-}
-
-sub _initialize_svk {
-    my (
-        $repo,
-        $mirror,
-        $local,
-    ) = (
-        svn_repository(),
-        svk_mirror_path(),
-        svk_local_path(),
-    );
-
-    die "Repo path is not specified!  Please set the repo_path in your base or type local-config.\n"
-        unless defined($repo) and $repo =~ /\S/;
-
-    die "Mirror path is not specified!  Please set the repo_mirror in your base or type local-config.\n"
-        unless defined($mirror) and $mirror =~ /\S/;
-
-    die "SVK local base path is not specified.  Please set repo_svk_local in your base or type local-config.\n"
-        unless defined($local) and $local =~ /\S/;
-
-    # Prepare the default depot; harmless if it already exists.
-    do_system_soft(q{svk depotmap --init});
-
-    # If the mirror has already been set up, info will be successful.
-    if (do_system_soft(sprintf q{svk info %s}, $mirror) == 0) {
-        print "SVK mirror $mirror already exists.\n";
-    }
-    else {
-        print "Mirroring repo to $mirror.\n";
-        do_system_soft(sprintf q{svk mirror file://%s %s}, $repo, $mirror);
-    }
-
-    # Sync the mirror
-    do_system_soft(sprintf q{svk sync %s}, $mirror);
-
-    return;
-}
-
 sub vcs_exclude_patterns {
     my %patterns = (
         svn => [ '**.svn**' ],
         git => [ '**.git**' ],
     );
-    $patterns{svk} = $patterns{svn};
     my $type = vcs_type();
     my $pattern = $patterns{$type} or die "No exclusion patterns found for VCS type '$type'.\n";
     return @$pattern;
@@ -1769,26 +1685,6 @@ sub vcs_checkout {
             [
                 'svn co file://%s %s',
                 svn_repository(),
-                $conf->{path},
-            ],
-        );
-    }
-    elsif ($vcs eq 'svk') {
-        _initialize_svk();
-        my $local = svk_local_path();
-        die "Local workspace $local already exists; use svk delete to clear this or handle checkout manually.\n"
-            if do_system_soft('svk', 'info', $local) == 0
-        ;
-        @cmds = (
-            [
-                q{svk copy -m 'branching from mirror for %s' -p %s %s},
-                $conf->{name},
-                svk_mirror_path(),
-                $local,
-            ],
-            [
-                'svk co %s %s',
-                $local,
                 $conf->{path},
             ],
         );
@@ -1834,27 +1730,12 @@ sub vcs_checkout {
 sub vcs_refresh {
     my $base = vcs_type();
     my $cmd = $base eq 'svn' ? 'up' : 'pull';
-    if ($base eq 'svk') {
-        _initialize_svk();
-    }
     my $dir = pushd( config_hash()->{path} );
     return do_system($base, $cmd);
 }
 
 sub vcs_remove_camp {
-    if (vcs_type() eq 'svk') {
-        my $path = svk_local_path();
-        print "Clearing SVK workspace $path.\n";
-        do_system_soft(sprintf('svk co -d %s', config_hash()->{path}));
-        do_system_soft(
-            sprintf(
-                q{svk delete -m '%s remove camp %s' %s},
-                __PACKAGE__,
-                config_hash()->{name},
-                $path,
-            )
-        );
-    }
+    # do nothing
     return;
 }
 
@@ -1862,7 +1743,6 @@ sub vcs_local_refresh {
     my $vcs_type = vcs_type();
     my %map = (
         svn => 'svn up',
-        svk => 'svk up',
         git => 'git checkout',
     );
     my $cmd = $map{$vcs_type} or die "No local refresh command available for VCS type '$vcs_type'.\n";
@@ -1880,7 +1760,6 @@ sub vcs_local_revert {
     my $vcs_type = vcs_type();
     my %map = (
         svn => 'svn revert %s',
-        svk => 'svk revert %s',
         git => 'git checkout %s',
     );
     my $cmd = $map{$vcs_type} or die "No local revert command available for VCS type '$vcs_type'.\n";
@@ -3080,18 +2959,9 @@ Subversion ('svn')
 
 =item *
 
-SVK ('svk')
-
-=item *
-
 Git ('git')
 
 =back
-
-These can be further categorized into two options: Subversion-based ('svn' and 'svk') versus Git.  The SVK version
-control system uses an alternate interface for working with the repository, setting up the camp, etc., but it
-relies on an underlying Subversion repository and naturally will not work unless the camp type has a Subversion
-repository available.
 
 Typically speaking, use of Git for a particular camp type implies non-use of Subversion, and the opposite also holds.
 However, there is no reason that all types cannot be made available for use within the same camp type; the Git
@@ -3123,20 +2993,9 @@ I<repo_path_git>
 
 I<repo_path_svn>
 
-=item *
-
-I<repo_mirror>
-
-=item *
-
-I<repo_svk_local>
-
 =back
 
-While no assumptions are made, the strong recommendation as of this writing is, given all options, use Git.
-Subversion is slow, inefficient in its use of disk space, relatively inflexible, bad at branching, etc.  The
-SVK system can be used on top of Subversion to accomodate for some of this but it ultimately is, in the words
-of Jon Jensen, "weak sauce".  Git does everything that SVN+SVK do and far more, more efficiently, more elegantly.
+While no assumptions are made, the strong recommendation is to use Git. Subversion is slow, inefficient in its use of disk space, relatively inflexible, bad at branching, etc.
 
 =head1 GIT USE
 
@@ -3152,33 +3011,17 @@ as the repository to track; this is something that can be done using git directl
 Create the camp with Git as the VCS choice, then use git directly within that camp to point the camp at an
 alternate remote repository.
 
-=head1 SVK USE
-
-The camp system is designed to support easy use of SVK, which effectively allows for easier branch management
-and more effective management of camps that are undergoing major revisions over long periods of time (and
-thus less likely to be committed to the main repository on a frequent basis).
-
-In order for SVK to work on your deployment, you must have svk installed (which is an exciting adventure,
-placing various requirements on your SVN version, for example).
-
-There is no need to configure SVK per user; the camp system will initialize a user's local .svk settings,
-mirrors, etc., whenever that user first chooses 'svk' as their version control system for a new camp.
-
-If you want to make use of SVK with the camp system, please look at the configuration variables section,
-with specific attention paid to I<repo_mirror> and I<repo_svk_path>; these dictate how the SVK repositories
-are created and managed over time.
-
 =head1 BUGS AND LIMITATIONS
 
 This module has tests. It also probably has bugs. It is, after all, software.
 
 =head1 AUTHOR
 
-Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
+Ethan Rowe and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2011 End Point Corporation, http://www.endpoint.com/
+Copyright (C) 2006-2015 End Point Corporation, https://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

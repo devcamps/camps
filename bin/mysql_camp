@@ -72,7 +72,7 @@ mysql_camp - invoke the mysql client for a camp MySQL instance
 
 =head1 VERSION
 
-3.02
+3.05
 
 =head1 SYNOPSIS
 
@@ -141,11 +141,11 @@ the contents of that file.  If the file doesn't exist, it will throw an error.
 
 =head1 AUTHOR
 
-Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
+Ethan Rowe and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2011 End Point Corporation, http://www.endpoint.com/
+Copyright (C) 2006-2015 End Point Corporation, https://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

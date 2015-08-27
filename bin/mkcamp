@@ -54,7 +54,7 @@ Options:
 --skipvcs   Skip version control clone/checkout.
 
 --vcs       Specify version control system to use for working copy checkout.
-            Options are "svn", "svk", and "git".
+            Options are "svn" and "git".
             The camp type requested may provide a default, and determines
             which options actually work.
 
@@ -168,13 +168,13 @@ mkcamp - create a new camp
 
 =head1 VERSION
 
-3.03
+3.05
 
 =head1 SYNOPSIS
 
 =over
 
-=item I<mkcamp> --comment="<comments>" --type=<type> [--number=<camp #>] [--skipcamp] [--skipdb] [--vcs=<svn|svk|git>] [--help]
+=item I<mkcamp> --comment="<comments>" --type=<type> [--number=<camp #>] [--skipcamp] [--skipdb] [--vcs=<svn|git>] [--help]
 
 =back
 
@@ -210,9 +210,9 @@ Do not add this camp to the database (arguments of --comment will not be passed 
 
 Skip database creation.
 
-=item --vcs=<svn|svk|git>
+=item --vcs=<svn|git>
 
-Optionally specify version control system to use for working copy checkout. The camp type requested should provide a default, and determines which options actually work. This is normally used only to make an svk camp when svn is the default.
+Optionally specify version control system to use for working copy checkout. The camp type requested should provide a default, and determines which options actually work.
 
 =item --help
 
@@ -222,11 +222,11 @@ Displays the help menu and list of camp types based on Camp Master Database conf
 
 =head1 AUTHOR
 
-Ethan Rowe E<lt>ethan@endpoint.comE<gt> and other contributors
+Ethan Rowe and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2011 End Point Corporation, http://www.endpoint.com/
+Copyright (C) 2006-2015 End Point Corporation, https://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

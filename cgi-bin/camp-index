@@ -4,6 +4,7 @@ use warnings;
 use strict;
 use lib '/home/camp/lib';
 use Camp::Master qw(camp_list);
+use CGI::Carp qw(fatalsToBrowser);
 
 my $title = 'Your camps here';
 my $camp_type = 'sample';

@@ -8,7 +8,7 @@ use Camp::Master;
 
 my $camp;
 
-if (@ARGV and $ARGV[0] =~ /\A\d+\z/) {
+if (@ARGV and $ARGV[0] =~ /^\d+$/) {
     # first command-line argument can be camp number
     $camp = shift;
 }

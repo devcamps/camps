@@ -806,12 +806,18 @@ sub _config_hash_db {
     my ($hash, $camp_number) = @_;
     return if $hash->{skip_db};
     _determine_db_type_and_path( $hash ) or die "Failed to determine database type!\n";
-    $hash->{db_host}       = 'localhost';
-    $hash->{db_port}       = 8900 + $camp_number;
-    $hash->{db_encoding}   = 'UTF-8',
-#    $hash->{db_locale}     = undef;
-    $hash->{db_data}       = File::Spec->catfile( $hash->{db_path}, 'data', );
-    $hash->{db_tmpdir}     = File::Spec->catfile( $hash->{db_path}, 'tmp', );
+    return if $hash->{db_type} eq 'none';
+
+    if ($hash->{db_type} =~ /^(?:pg|mysql)$/) {
+        $hash->{db_host}       = 'localhost';
+        $hash->{db_port}       = 8900 + $camp_number;
+        $hash->{db_encoding}   = 'UTF-8',
+        $hash->{db_data}       = File::Spec->catfile( $hash->{db_path}, 'data' );
+        $hash->{db_tmpdir}     = File::Spec->catfile( $hash->{db_path}, 'tmp' );
+    }
+    else {
+        die "Unknown database type!\n";
+    }
 
     if ($hash->{db_type} eq 'pg') {
         $hash->{db_log}        = File::Spec->catfile( $hash->{db_tmpdir}, 'postgresql.log', );
@@ -821,12 +827,6 @@ sub _config_hash_db {
         $hash->{db_log}        = File::Spec->catfile( $hash->{db_tmpdir}, 'mysql.log', );
         $hash->{db_conf}       = File::Spec->catfile( $hash->{path}, 'my.cnf', );
         $hash->{db_socket}     = File::Spec->catfile( $hash->{db_tmpdir}, "mysql.$camp_number.sock" );
-    }
-    elsif ($hash->{db_type} eq 'none') {
-        # do nothing
-    }
-    else {
-        die "Unknown database type!\n";
     }
 
     return;

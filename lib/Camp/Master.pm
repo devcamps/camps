@@ -16,7 +16,7 @@ use DBI;
 use Exporter;
 use base qw(Exporter);
 
-our $VERSION = '3.05';
+our $VERSION = '3.06';
 
 @Camp::Master::EXPORT = qw(
     base_path
@@ -79,7 +79,7 @@ Camp::Master - library routines for management of camps
 
 =head1 VERSION
 
-3.05
+3.06
 
 =cut
 
@@ -3021,7 +3021,7 @@ Ethan Rowe and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2015 End Point Corporation, https://www.endpoint.com/
+Copyright (C) 2006-2016 End Point Corporation, https://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

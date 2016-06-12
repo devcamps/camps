@@ -1,0 +1,125 @@
+#!/usr/bin/perl
+
+# This script manages all LVM related tasks for camps
+
+use strict;
+use warnings;
+use Getopt::Long;
+use lib '/home/camp/lib';
+use Camp::Master;
+use Camp::LVM;
+
+*STDOUT->autoflush(1);
+*STDERR->autoflush(1);
+
+die "Must run this as root!\n" if $< != 0;
+
+
+my %opt;
+GetOptions(
+    \%opt,
+    qw(
+        number|n=i
+        username|u=s
+        use_origin|o=i
+        help|h
+    )
+);
+my $action = shift @ARGV;
+
+show_usage() if $opt{help};
+show_usage("Missing action.") unless $action;
+my @available_actions = qw(create remove mount umount initdb analyze status resize resize_all);
+show_usage("Action '$action' not available.")
+    unless grep { $action eq $_ } @available_actions;
+
+my $config_hash;
+
+if ($action =~ /^(?:create|remove|mount|umount|status|resize)$/ && ! $opt{use_origin}) {
+    show_usage("Missing username.") unless $opt{username};
+    show_usage("Missing number.")   unless defined $opt{number};
+
+    initialize(
+        force => 1,
+        camp => $opt{number},
+    );
+
+    # Check that the given username owns the given camp number
+    die "Camp number $opt{number} is not owned by user $opt{username}!" if camp_user() ne $opt{username};
+    $config_hash = config_hash();
+}
+else {
+    show_usage("Missing origin.") unless $opt{use_origin};
+    initialize(type => 'citypass');
+    $config_hash = Camp::LVM::local_hash();
+    Camp::LVM::use_origin($config_hash);
+}
+
+if ($action eq 'create') {
+    Camp::LVM::create_lv($config_hash);
+}
+elsif ($action eq 'remove') {
+    Camp::LVM::remove_lv($config_hash);
+}
+elsif ($action eq 'mount') {
+    Camp::LVM::mount_fs($config_hash);
+}
+elsif ($action eq 'umount') { 
+    Camp::LVM::umount_fs($config_hash);
+}
+elsif ($action eq 'initdb') {
+    Camp::LVM::origin_initdb($config_hash);
+}
+elsif ($action eq 'analyze') { 
+    Camp::LVM::analyze_db($config_hash);
+}
+elsif ($action eq 'status') { 
+    Camp::LVM::status_lv($config_hash);
+}
+elsif ($action eq 'resize') {
+    Camp::LVM::resize_snapshots($config_hash);
+}
+elsif ($action eq 'resize_all') {
+    Camp::LVM::resize_snapshots({});
+}
+
+
+sub show_usage {
+    my $msg = shift || '';
+    print $msg. "\n" if $msg;
+    print <<EOH;
+Usage:
+    camp-lvm create  -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
+    camp-lvm remove  -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
+    camp-lvm mount   -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
+    camp-lvm umount  -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
+    camp-lvm initdb  --use_origin=1
+    camp-lvm analyze -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
+    camp-lvm status  -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
+    camp-lvm resize  -n|--number=XX -u|--username=USERNAME
+    camp-lvm resize_all
+
+Options:
+
+-u USERNAME
+--username=USERNAME
+    Specify the username of the owner of this camp.
+
+-n XX
+--number=XX
+    Specify the camp number for this camp.
+
+-o 1
+--use_origin=1
+
+--help
+    See this help.
+
+Action 'resize' will increase the size of a camp's snapshot if its
+copy-on-write table usage is higher than a threshold, defaulting to 50%.
+
+The action of 'resize_all' does this for all camps.
+
+EOH
+    exit;
+}

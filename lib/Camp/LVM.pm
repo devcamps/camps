@@ -1,196 +1,366 @@
 package Camp::LVM;
 
-# Routines that interact with LVM, or routines needed to support them.
+# Routines that interact with LVM for camp database snapshots
 
 use strict;
 use warnings;
+use lib '/home/camp/lib';
 use Camp::Master;
 
-
-sub does_snapshot_exist {
+sub does_lv_exist {
     my $conf = shift;
-    my $shapshot_size = $conf->{lvm_snapshot_size} || '3G';
-    my $username = $conf->{system_user};
-    my $number = $conf->{number};
-    my $snapshot_name = "snap-$username-camp$number";
-    my @lvs_output = `/usr/sbin/lvs`;
-    if (grep { /\b$snapshot_name\b/ } @lvs_output) {
+    my $vg = $conf->{lvm_vg};
+    my $lv = $conf->{use_origin} ? $conf->{lvm_origin_name} : $conf->{lvm_snapshot_name};
+    my $name;
+
+    if ($conf->{use_origin}) {
+        $name = "$vg-$lv";
+    }
+    else {
+        my $username = $conf->{system_user};
+        my $number = $conf->{number};
+        $name = "$vg-snap-$username-camp$number";
+    }
+
+    my @output = `/usr/sbin/lvs --noheading --separator=- -ovg_name,lv_name`;
+    if (grep { /\b$name\b/ } @output) {
         return 1;
     }
     return 0;
 }
 
-sub update_fstab {
-    my ($conf, $action, $username, $number) = @_;
-    $action ||= 'add';
+sub is_lv_active {
+    my $conf = shift;
+    my $vg = $conf->{lvm_vg};
+    my $lv = $conf->{use_origin} ? $conf->{lvm_origin_name} : $conf->{lvm_snapshot_name};
 
-    # trim out all camp snapshots
-    my $fstab_orig = `cat /etc/fstab`;
-    my $fstab      = $fstab_orig;
-    $fstab         =~ s/^.*?snap\-.*?camp\d\d.*$//mg;  # Remove all previous snapshot entries
-
-    # Trim off any white space at the end of the file
-    $fstab  =~ s/[\s\r\n]+$//s;
-    $fstab .= $/;
-
-    # Rebuild the list of all snapshots
-    my $sth = Camp::Master::dbh()->prepare('SELECT username, camp_number FROM camps ORDER by camp_number');
-    $sth->execute();
-
-    my $need_to_add = 0;
-    if ($action eq 'add' && $username && defined $number) {
-        $need_to_add = 1;
+    my @output = `/usr/sbin/lvscan | grep /dev/$vg/$lv`;
+    if (grep { /INACTIVE/ } @output) {
+        return 0;
     }
-    my $lvm_origin_volume = $conf->{lvm_origin_volume} or die "Missing lvm_origin_volume from config, cannot clone LVM volume.";
-    my ($vol_group) = split('/', $lvm_origin_volume);
-    my $fstab_fmt   = '/dev/%s/%s       /home/%s/camp%s/pgsql/data        ext4    defaults        0 0' . "\n";
+    return 1;
+}
 
-    while (my ($u,$n) = $sth->fetchrow_array) {
-	if ($action eq 'remove' && $username eq $u && $number == $n) {
-	    print "Removing camp$n for $u from fstab.\n";
-	    next;
-	}
-	my $snapshot_name = "snap-$u-camp$n";
-	if (-e "/dev/$vol_group/$snapshot_name") {
-	    #print "Adding to fstab: /dev/$vol_group/$snapshot_name\n";  ## DEBUG
-	    $fstab .= sprintf($fstab_fmt, $vol_group, $snapshot_name, $u, $n);
+sub does_mount_exist {
+    my $conf = shift;
+    my $mount_point = $conf->{use_origin} ? $conf->{lvm_origin_data} : $conf->{db_data};
 
-            if ($need_to_add && $u eq $username && $n == $number) {
-                $need_to_add = 0;
-                print "Re-added mount for $username camp$number\n";
+    my $cmd = "/usr/bin/mountpoint -q $mount_point";
+    if (system($cmd) == 0) {
+        return 1;
+    }
+    return;
+}
+
+sub local_hash {
+    my $local_hash = shift;
+    for my $conf_file (
+        map { File::Spec->catfile($_, 'local-config') } Camp::Master::base_path(), Camp::Master::type_path()
+    ) {
+        next unless -f $conf_file;
+        open(my $CONF, '<', $conf_file) or die "Couldn't open configuration file $conf_file: $!\n";
+        while (my $line = <$CONF>) {
+            chomp($line);
+            next unless $line =~ /\S/;
+            next if $line =~ /^\s*#/;
+            if (my ($key,$val) = $line =~ /^\s*(\w+):(.*?)\s*$/) {
+                $local_hash->{$key} = Camp::Master::substitute_hash_tokens($val, $local_hash);
             }
-	}
-	else {
-	    warn "Camp $n for $u in camps database, but LVM snapshot /dev/$vol_group/snap-$u-camp$n does not exist.\n";
-	}
-	#print "update_fstab(), need_to_add=$need_to_add\n";  ## DEBUG
-    }
-    $sth->finish;
-
-    if ($need_to_add) {
-	print "Adding mount for $username camp$number\n";
-	my $snapshot_name = "snap-$username-camp$number";
-        if (-e "/dev/$vol_group/$snapshot_name") {
-            $fstab .= sprintf($fstab_fmt, $vol_group, $snapshot_name, $username, $number);
+            else {
+                warn "Skipping invalid line in file $conf_file: $line\n";
+                next;
+            }
         }
-        else {
-            warn "Camp $number for $username in camps database, but LVM snapshot /dev/$vol_group/snap-$username-camp$number does not exist.\n"; 
+        close $CONF or die "Error closing $conf_file: $!\n";
+    }
+    $local_hash->{base_path} = Camp::Master::base_path();
+    $local_hash->{type_path} = Camp::Master::type_path();
+    return $local_hash;
+}
+
+sub status_lv {
+    my $conf = shift;
+    my $vg = $conf->{lvm_vg};
+    my $lv = $conf->{lvm_origin_name};
+    my $mount_point = $conf->{lvm_origin_data} or die "Missing lvm_origin_data from config";
+
+    use_origin($conf);
+
+    if (!does_lv_exist($conf)) {
+        die "$lv does not exist.";
+    }
+    elsif (!does_mount_exist($conf)) {
+        system("/bin/mount /dev/$vg/$lv $mount_point");
+        if ($? >> 8) {
+            die "Error running mount! exit code: " . ($? >> 8);
         }
+        print "Mounting $mount_point\n";
+    }
+    return;
+}
+
+sub create_lv {
+    my $conf = shift;
+    my $vg          = $conf->{lvm_vg};
+    my $lv          = $conf->{use_origin} ? $conf->{lvm_origin_name} : $conf->{lvm_snapshot_name};
+    my $lv_size     = $conf->{use_origin} ? $conf->{lvm_origin_size} : $conf->{lvm_snapshot_size};
+    my $mount_point = $conf->{use_origin} ? $conf->{lvm_origin_data} : $conf->{db_data};
+
+    if (does_lv_exist($conf)) {
+        die "/dev/$vg/$lv already exists.";
     }
 
-    open my $out, '>', '/etc/fstab.new'  or die "Cannot write new fstab file: $!";
-    print {$out} $fstab;
-    close $out;
-
-    print "Backing up /etc/fstab and putting in place a new one.\n";  ## DEBUG
-    system('cp -a /etc/fstab /etc/fstab.bak');
-    system('mv /etc/fstab.new /etc/fstab');
+    my @args = (
+        '/usr/sbin/lvcreate',
+        "-L $lv_size",
+        "-n $vg/$lv",
+    );
+    if ($conf->{use_origin}) {
+        push @args, "-y -Wy -Zy";
+    }
+    else {
+        push @args, "-s $vg/$conf->{lvm_origin_name}";
+    }
+    my $cmd = join(' ', @args);
+    print "Creating:\n$cmd\n";
+    system($cmd) == 0 or die "Error executing lvcreate!\n";
+    if ($conf->{use_origin}) {
+        $cmd = "mkfs.ext4 -m 0 /dev/$vg/$lv";
+        system($cmd) == 0 or die "Error executing $cmd\n";
+    }
+    mount_fs($conf);
 
     return;
 }
 
-sub clone_database {
-    my $conf = shift;
-    my $lvm_origin_volume = $conf->{lvm_origin_volume} or die "Missing lvm_origin_volume from config, cannot clone LVM volume.";
-    my ($vol_group) = split('/', $lvm_origin_volume);
+sub use_origin {
+    my ($conf, $function) = @_;
+    $conf->{use_origin} ||= 1;
+    return;
+}
 
-    my $shapshot_size = $conf->{lvm_snapshot_size} || '3G';
-    my $username      = $conf->{system_user};
-    my $number        = $conf->{number};
-    my $snapshot_name = "snap-$username-camp$number";
-    if ( does_snapshot_exist($conf) ) {
-        die "LVM snapshot already exists for camp $number and user $username";
-    }
+sub origin_initdb {
+    my $conf = shift;
+
+    _pre_origin_initdb($conf);
 
     my @args = (
-        "-L $shapshot_size",
-        "-n $snapshot_name",
-        "-s $lvm_origin_volume"
+        '/usr/bin/initdb',
+        "-D $conf->{lvm_origin_data}",
+        '-n',
+        '-U', 'postgres',
     );
-    my $cmd = '/usr/sbin/lvcreate '. join(' ', @args);
-    print "Creating LVM snapshot:\n$cmd\n";
-    system($cmd) == 0 or die "Error executing lvcreate!\n";
 
-    my $db_mount_point = $conf->{db_data};
-#    print "db_mount_point=$db_mount_point\n";  ## DEBUG
-#    system("/bin/mkdir -p $db_mount_point");
-#    system("chown -R $username:$username $db_mount_point");
-#    system("echo '$db_mount_point'; ls -la $db_mount_point");
-#    system("mount | grep camp");
-#    print "db_mount_point $db_mount_point exists.\n"  if ( -d $db_mount_point );  ## DEBUG
-#    print "/bin/mount -t ext4 /dev/$vol_group/$snapshot_name $db_mount_point\n";  ## DEBUG
-    my $rc = system("/bin/mount -t ext4 /dev/$vol_group/$snapshot_name $db_mount_point");
+    my $cmd = join(' ', @args);
+    $cmd = "su camp -c '$cmd'";
+    system($cmd) == 0 or die "Error executing $cmd\n";
+
+    _post_origin_initdb($conf);
+
+    return;
+}
+
+sub _pre_origin_initdb {
+    my $conf = shift;
+    # lost+found gets created by mkfs and needs to get removed since initdb requires an empty directory
+    rmdir "$conf->{lvm_origin_data}/lost+found" or die "Error removing lost+found!\n";
+    return;
+}
+
+sub _post_origin_initdb {
+    my $conf = shift;
+
+    # append psql/postgres config to origin
+    my $db_conf = File::Spec->catfile($conf->{lvm_origin_data}, 'postgresql.conf');
+    my $append = File::Spec->catfile('/home/camp/pgsql/', 'postgresql.conf');
+
+    # camp_db_port is not set because we are using usring origin
+    # we inject lvm_origin_port to populate postgresql.conf's token
+    $conf->{db_port} = $conf->{lvm_origin_port};
+    $conf->{db_tmpdir} = '/tmp';
+
+    open(my $out, '>>', $db_conf) or die "Failed writing configuration file '$db_conf': $!\n";
+
+    open(my $in, '<', $append) or die "Failed opening configuration file '$append': $!\n";
+    while (my $line = <$in>) {
+        my $template = $line;
+        $template = Camp::Master::substitute_hash_tokens(
+            $line,
+            $conf,
+        );
+        print $out $template;
+    }
+    close $in;
+    close $out or die "Error closing $db_conf: $!\n";
+
+    return;
+}
+
+sub analyze_db {
+    my $conf = shift;
+    my $port = $conf->{use_origin} ? $conf->{lvm_origin_port} : $conf->{camp_db_port};
+
+    my @args = (
+        '/usr/bin/vacuumdb',
+        '-h localhost',
+        "-p $port",
+        '-U', 'postgres',
+        '-a',
+        '-Z',
+     );
+
+    my $cmd = join(' ', @args);
+    system($cmd) == 0 or die "Error executing $cmd\n";
+    return;
+}
+
+sub _database_shutdown {
+    my $conf = shift;
+    my $mount_point = $conf->{use_origin} ? $conf->{lvm_origin_data} : $conf->{db_data};
+    my $username    = $conf->{use_origin} ? 'camp' : $conf->{system_user};
+
+    # check for running Postmaster on this database.
+    if (system("pgrep -u $username -f $mount_point") == 0) {
+        # stop running postgres
+        my $cmd = "pkill -u $username -f $mount_point";
+        #system("su $username -c '$cmd'") == 0
+        system($cmd) == 0
+            or die "Error stopping running Postgres instance!\n";
+        sleep 4;
+    }
+    return;
+}
+
+sub _db_control_pg {
+    my ($conf, $action) = @_;
+    my $mount_point = $conf->{use_origin} ? $conf->{lvm_origin_data} : $conf->{db_data};
+    my $logdir = $conf->{type_path};
+    # FIXME: add option for camp
+
+    if ($action eq 'stop') {
+        # we use a little more agressive function to stop
+        _database_shutdown($conf);
+        return;
+    }
+
+    my $cmd = "PGHOST=$conf->{db_host} pg_ctl -D $mount_point -l $logdir/pgstartup.log -m fast -w $action";
+    my $result = system("su camp -c '$cmd'");
+    $result == 0 and return 1;
+    return;
+}
+
+sub mount_active {
+    my $conf = shift;
+
+    # in certain circumstances the snapshot can become unmounted before postgres is shutdown
+    # this will leave the snapshot in a stuck state unable to be removed because the PG
+    # process is still using the mount.  As it is unmounted we have no pid file so we
+    # use pkill instead.  To test this we check if the config file exists in the data dir.
+
+    my $mount_point = $conf->{use_origin} ? $conf->{lvm_origin_data} : $conf->{db_data};
+    my $pg_hba_file = File::Spec->catfile($mount_point, 'pg_hba.conf');
+    -e $pg_hba_file and return 1;
+    return;
+}
+
+sub remove_lv {
+    my $conf = shift;
+    my $vg = $conf->{lvm_vg};
+    my $lv = $conf->{use_origin} ? $conf->{lvm_origin_name} : $conf->{lvm_snapshot_name};
+    my $mount_point = $conf->{use_origin} ? $conf->{lvm_origin_data} : $conf->{db_data};
+
+    if ( ! does_lv_exist($conf) ) {
+        print "/dev/$vg/$lv does not exist.\n";
+        return;
+    }
+
+    unless (mount_active($conf)) {
+        print "$mount_point is mounted but contains no data.\n";
+        _database_shutdown($conf);
+    }
+
+    umount_fs($conf);
+
+    my @args = (
+        '/usr/sbin/lvremove',
+        "-f /dev/$vg/$lv",
+    );
+    my $cmd = join(' ', @args);
+    print "Removing /dev/$vg/$lv:\n$cmd\n";
+    system($cmd) == 0 or die "Error executing lvremove!\n";
+
+    return;
+}
+
+sub umount_fs {
+    my $conf = shift;
+    my $mount_point = $conf->{use_origin} ? $conf->{lvm_origin_data} : $conf->{db_data};
+
+    if (! does_mount_exist($conf)) {
+        return;
+    }
+
+    # unmount the camp volume
+    system("/bin/umount -l $mount_point");
+    if ($? > 0) { warn "Failed to umount $mount_point"; }
+    my $max_wait = 10;
+    while ( -d "$mount_point/base" && $max_wait-- ) {
+        sleep 2;
+        print "Waiting for mount dir to unmount: $mount_point/base\n";
+    }
+    return;
+}
+
+sub mount_fs {
+    my $conf = shift;
+    my $vg          = $conf->{lvm_vg};
+    my $lv          = $conf->{use_origin} ? $conf->{lvm_origin_name} : $conf->{lvm_snapshot_name};
+    my $mount_point = $conf->{use_origin} ? $conf->{lvm_origin_data} : $conf->{db_data};
+    my $username    = $conf->{use_origin} ? 'camp' : $conf->{system_user};
+
+    if (does_mount_exist($conf)) {
+        return;
+    }
+    elsif (!mount_active($conf)) {
+        print "$mount_point is mounted but contains no data.\n";
+        _database_shutdown($conf);
+    }
+
+    # although the mount may not exist it could be stuck by postgres
+
+    if (! does_lv_exist($conf)) {
+        die "/dev/$vg/$lv does not exists";
+    }
+    elsif ((! is_lv_active($conf)) && (! $conf->{use_origin})) {
+        die "Snapshot INACTIVE replace with refresh-camp --db.\n";
+        return;
+    }
+
+    my $rc = system("/bin/mount /dev/$vg/$lv $mount_point");
     if ($? >> 8) {
         die "Error running mount! exit code: ". ($? >> 8);
     }
-    sleep 2;
-#    print "mount\n";  ## DEBUG
-#    system("mount | grep '$conf->{db_path}'");
+    print "Mounting $mount_point.\n";
 
     # Check for double mount
-    # For whatever reason, the mount command above mounts the snapshot
-    # twice: once on campXX/pgsql/data, and then again on campXX/pgsql (on top of the other).
-    # Still baffled, I just added this work-around.
-    my $db_path = $conf->{db_path};
-    my @mounts = `/bin/mount | grep '$db_path'`;
+    my @mounts = `/bin/mount | grep '$mount_point'`;
     if (scalar(@mounts) > 1) {
-	print "Umnounting duplicate mount $db_path\n";
-        system("/bin/umount $db_path");
+        print "Umnounting duplicate mount $mount_point.\n";
+        system("/bin/umount $mount_point");
         sleep 2;
-#        print "mount\n";  ## DEBUG
-#        system("mount | grep '$db_path'");
     }
-    my $max_wait = 10;
-    while ( ! -d "$db_mount_point/base" && $max_wait-- ) {
-        sleep 2;
-        print "Waiting for mount dir to exist: $db_mount_point/base\n";
+    unless ($conf->{use_origin}) {
+        my $max_wait = 10;
+        while (! -d "$mount_point/base" && $max_wait--) {
+            sleep 2;
+            print "Waiting for mount dir to exist: $mount_point/base\n";
+        }
+        if (! -d "$mount_point/base") {
+            die "Failed to mount $mount_point\n";
+        }
     }
-    if (! -d "$db_mount_point/base") {
-	die "Uh... we tried to cmount $db_mount_point and it didn't work.\n";
-    }
-    system("chown -R $username:$username $db_mount_point");
-
-    # Update /etc/fstab with the new mounted camp db so it stays there
-    # when the machine reboots
-    update_fstab($conf, 'add', $username, $number);
-    return;
-}
-
-sub remove_database_clone {
-    my $conf = shift;
-    my $lvm_origin_volume = $conf->{lvm_origin_volume} or die "Missing lvm_origin_volume from config, cannot clone LVM volume.";
-    my ($vol_group) = split('/', $lvm_origin_volume);
-    #print "vol_group=$vol_group\n";  ## DEBUG
-
-    my $username      = $conf->{system_user};
-    my $number        = $conf->{number};
-    my $snapshot_name = "snap-$username-camp$number";
-    if ( ! does_snapshot_exist($conf) ) {
-        die "No LMV snapshot exists for camp $number and username $username to remove.";
-    }
-
-    my $db_mount_point = $conf->{db_data};
-    print "db_mount_point=$db_mount_point\n";  ## DEBUG
-
-    # unmount the camp volume
-    system("/bin/umount -l $db_mount_point");
-    if ( $? > 0 ) { warn "Failed to umount $db_mount_point"; }
-    my $max_wait = 10;
-    while ( -d "$db_mount_point/base" && $max_wait-- ) {
-        sleep 2;
-        print "Waiting for mount dir to unmount: $db_mount_point/base\n";
-    }
-
-    # update fstab
-    update_fstab($conf, 'remove', $username, $number);
-
-    # remove the LVM snapshot
-    my @args = (
-        "-f $vol_group/$snapshot_name",
-    );
-    my $cmd = '/usr/sbin/lvremove '. join(' ', @args);
-    print "Removing LVM snapshot:\n$cmd\n";
-    system($cmd) == 0 or die "Error executing lvcreate!\n";
+    system("chown -R $username: $mount_point") == 0
+        or die "Error running chown";
 
     return;
 }
@@ -202,34 +372,55 @@ sub resize_snapshots {
     my $increase_by = $conf->{lvm_snapshot_size} || '3G';
     my $verbose = 1;
 
-    my @lvs = `/usr/sbin/lvs | grep snap | grep camp`;
-    chomp(@lvs);
-    die "No lvs output"  unless (@lvs);
+    my @args = (
+        '/usr/sbin/lvs',
+        "--separator ,",
+        "--noheadings",
+        "-o",
+        "vg_name,lv_name,seg_size,data_percent",
+    );
+    my $cmd = join(' ', @args);
+    my @data = `$cmd`;
+    chomp @data;
+    die "No lvs output" unless @data;
 
     # if given a camp number, then look at that camp only
     if ($camp_number && $camp_number =~ /^\d+$/) {
-	my @tmp  = grep { /^.*?\bsnap\-\w+\-camp$camp_number\b.*$/ } @lvs;
-	@lvs     = @tmp;
+        @data = grep { /^.*?\bsnap\-\w+\-camp$camp_number\b.*$/ } @data;
     }
 
-    # Loop over each camp snapshot
-    foreach my $c (@lvs) {
-	my ($vol, $group, $size, $consumed) = $c =~ /^\s+(snap\-\w+\-camp\d\d)\s+(\S+)\s+\S+\s+([\d\.]+\w+)\s+\S+\s+([\d\.]+)\s*$/;
-	print $c ."\n"  if ($verbose);
-	if (! ($vol && $group && $consumed)) {
-	    print "Could not regex match lvs line:  $c\n";
-	    next;
-	}
+    my @lvs;
 
-	if ($consumed > $threshold) {
-	    print "Increasing size of snapshot $vol (currently $consumed\% of $size, adding $increase_by)\n";
-	    my $cmd = "/usr/sbin/lvresize -L +$increase_by $group/$vol";
-	    system($cmd);
-	}
+    for my $line (@data) {
+        $line =~ s/^\s+//;
+        my @fields = split(/,/, $line);
+        push @lvs, \@fields;
+    }
+
+    # Loop over each snapshot
+    for my $c (@lvs) {
+        my ($group, $vol, $size, $consumed) = @$c;
+        print "Checking @{$c}\n" if $verbose;
+
+        # validate lvs data
+        if  (!($group && $vol && $size)) {
+            print "lvs line not a valid snapshot skipping...\n";
+            next;
+        }
+        elsif ($vol !~/snap\-\w+-camp\d/) {
+            print "lvs line not a camp snapshot skipping...\n";
+            next;
+        }
+        elsif ($consumed > $threshold) {
+            print "Increasing size of snapshot $vol (currently $consumed\% of $size, adding $increase_by)\n";
+            my $cmd = "/usr/sbin/lvresize -L +$increase_by $group/$vol";
+            system($cmd);
+        }
+        else {
+            print "Snapshot $vol within threshold (currently $consumed\% of $size.)\n";
+        }
     }
     return;
 }
-
-
 
 1;

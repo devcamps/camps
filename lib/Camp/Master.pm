@@ -1205,7 +1205,7 @@ creation.
 =item db_working_files_dir
 
 Sometimes when working in a camp a developer has SQL scripts that are in-progress and are needed when a
-database is refreshed.  These SQL files should be placed in a standard directory in each camp and 
+database is refreshed.  These SQL files should be placed in a standard directory in each camp and
 I<db_working_files_dir> should be the path to this dir relative to the camp's path.  Files in this dir
 that end in '.sql' will be executed in the camp's database in lexical order when the database is created
 or refreshed.
@@ -1234,7 +1234,7 @@ If using LVM snapshots for cloning databases for each camp, then set this to 'ye
 =item lvm_snapshot_size
 
 When using LVM snapshots for databases, you can specifiy the initial snapshot size.  Defaults to 3G.  When
-running the command `camp_lvm resize` or `camp_lvm resize_all`, camp snapshots may also be increased 
+running the command `camp-lvm resize` or `camp-lvm resize_all`, camp snapshots may also be increased
 by this same size if their usage exceeds 50%.
 
 =item lvm_origin_volume
@@ -1419,6 +1419,7 @@ the value of I<git_branch> contains a forward slash ("/"), the word characters p
 slash are treated as the remote name.
 
 If you use I<git_clone_options> "-o foo" to specify a remote name of "foo" rather than "origin",
+
 you can have your camp type check out branch "bar" via I<git_branch> of "foo/bar".  However, if
 you're using the default clone remote name of "origin", then I<git_branch> "bar" would suffice to
 checkout branch "bar".
@@ -1514,6 +1515,9 @@ sub config_hash {
         $conf_hash->{db_mysql_scripts} = [
             split /[\s,]+/, $conf_hash->{db_mysql_scripts} || ''
         ] if $conf_hash->{db_type} eq 'mysql';
+
+        $conf_hash->{lvm_snapshot_name} = 'snap-' . $conf_hash->{system_user} . '-camp' . $camp_number
+        if $conf_hash->{use_lvm_database_snapshots};
 
         if (has_ic()) {
             die "Must provide catalog linker names within base camp or type local-config!\n"
@@ -2104,7 +2108,7 @@ sub _database_exists_check {
 
     # Release the database snapshot, if we're using LVM
     if ($conf->{use_lvm_database_snapshots}) {
-        system("/bin/sudo /home/camp/bin/camp_lvm remove --number=$conf->{number} --username=$conf->{system_user}");
+        system("/bin/sudo /home/camp/bin/camp-lvm remove --number=$conf->{number} --username=$conf->{system_user}");
     }
 
     # remove old database's binary data.
@@ -2114,9 +2118,11 @@ sub _database_exists_check {
 
 sub _database_running_check_pg {
     my $conf = shift;
+print "Checking Database status\n";
     # check for running Postmaster on this database.
     if (system("pg_ctl status -D $conf->{db_data}") == 0) {
         # stop running postgres
+
         system("pg_ctl stop -D $conf->{db_data} -m fast") == 0
             or die "Error stopping running Postgres instance!\n";
     }
@@ -2311,8 +2317,8 @@ sub _initialize_camp_database_pg {
     # Create snapshot of database if we are using LVM
     my $tmp;
     if ($conf->{use_lvm_database_snapshots}) {
-        print "_initialize_camp_database_pg() calling camp_lvm create\n";  ## DEBUG
-	system("/bin/sudo /home/camp/bin/camp_lvm create --number=$conf->{number} --username=$conf->{system_user}");
+        #print "_initialize_camp_database_pg() calling camp-lvm create\n";  ## DEBUG
+        system("/bin/sudo /home/camp/bin/camp-lvm create --number=$conf->{number} --username=$conf->{system_user}");
     }
     else {
         # Run initdb to make new database cluster.
@@ -2344,7 +2350,10 @@ sub _initialize_camp_database_pg {
         rename $pg_hba_file, $pg_hba_orig or die "Couldn't rename $pg_hba_file to $pg_hba_orig: $!\n";
         open my $TRUST, '>', $pg_hba_file or die "Couldn't write $pg_hba_file: $!\n";
         print {$TRUST} <<'END';
-local all all trust
+# Camp system: temporarily leave wide open till we set the superuser password
+local   all             all                                     trust
+host    all             all             127.0.0.1/32            trust
+host    all             all             ::1/128                 trust
 END
         close $TRUST or die "Couldn't close $pg_hba_file: $!\n";
 
@@ -2369,8 +2378,9 @@ END
         open my $OUT, '>', $pg_hba_file or die "Couldn't write $pg_hba_file: $!\n";
         print {$OUT} $pg_hba_content;
         print {$OUT} <<'END';
-local   all         all                                             md5
-host    all         all         127.0.0.1         255.255.255.255   md5
+local   all             all                                     md5
+host    all             all             127.0.0.1/32            md5
+host    all             all             ::1/128                 md5
 END
         close $OUT or die "Couldn't close $pg_hba_file: $!\n";
 
@@ -2605,8 +2615,8 @@ sub _import_db_working_files {
     return  unless ($conf->{db_working_files_dir});
     my $dir = File::Spec->catfile($conf->{path}, $conf->{db_working_files_dir});
     if (! -d $dir) {
-	warn "Db working files dir $dir not found.";
-	return;
+        warn "Db working files dir $dir not found.";
+        return;
     }
     my @working_files = glob "$dir/*.sql";
     foreach my $file (@working_files) {
@@ -2848,15 +2858,15 @@ sub _db_control_pg {
     die "Need db_data definition!\n"
         unless defined $conf->{db_data}
             and $conf->{db_data} =~ /\S/;
-    my $cmd = "PGHOST=$conf->{db_host} pg_ctl -D $conf->{db_data} -l $conf->{db_tmpdir}/pgstartup.log -m fast";
-    # Work around old pg_ctl's terrible -w implementation, as evidenced by
-    # this comment there: "FIXME:  This is horribly misconceived."
-    my $manual_wait = (db_version_pg() < 8.0);
-    $cmd .= ' -w' if ! $manual_wait;
-    $cmd .= ' ' . $action;
-    my $result = do_system_soft($cmd);
-    sleep 5 if $manual_wait;
-    $result == 0 and return 1;
+
+    if ($conf->{use_lvm_database_snapshots}) {
+        #--use_origin=1
+        system("/bin/sudo /home/camp/bin/camp-lvm mount --number=$conf->{number} --username=$conf->{system_user}") == 0
+            or warn "Halting $action\n";
+    };
+
+    my $cmd = "PGHOST=$conf->{db_host} pg_ctl -D $conf->{db_data} -l $conf->{db_tmpdir}/pgstartup.log -m fast -w $action";
+    do_system_soft($cmd) == 0 and return 1;
     return;
 }
 

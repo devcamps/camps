@@ -2309,9 +2309,6 @@ sub _initialize_camp_database {
 sub _initialize_camp_database_pg {
     my $conf = shift;
 
-    # PostgreSQL initdb before version 8.0 didn't have the -A or --pwfile options,
-    # so we have to basically reimplement them manually.
-    my $password_pain = (db_version_pg() < 8.0);
     my $postgres_pass = $conf->{db_pg_postgres_pass} or die "No password determined for postgres user!\n";
 
     # Create snapshot of database if we are using LVM
@@ -2330,10 +2327,9 @@ sub _initialize_camp_database_pg {
             "-D $conf->{db_data}",
             '-n',
             '-U', 'postgres',
+            '-A', 'md5',
+            "--pwfile=$tmp",
         );
-        if (! $password_pain) {
-            push @args, '-A', 'md5', "--pwfile=$tmp";
-        }
         push @args, "-E $conf->{db_encoding}"      if $conf->{db_encoding};
         push @args, "--locale=$conf->{db_locale}"  if $conf->{db_locale};
         my $cmd = 'initdb ' . join(' ', @args);
@@ -2341,7 +2337,7 @@ sub _initialize_camp_database_pg {
         system($cmd) == 0 or die "Error executing initdb!\n";
     }
 
-    if ($password_pain || $conf->{use_lvm_database_snapshots}) {
+    if ($conf->{use_lvm_database_snapshots}) {
         # The default pg_hba.conf uses ident authentication, which won't work since
         # we're user e.g. "bob" trying to connect as "postgres", so switch temporarily
         # to trust auth.
@@ -2598,11 +2594,7 @@ sub _import_db_cmd {
 
 sub _import_db_cmd_pg {
     my ($script, $conf) = @_;
-    # Old versions of Postgres didn't create a "postgres" database by default.
-    # But for newer ones, use that instead of template1 so we don't pollute the
-    # template db if something goes wrong in the import.
-    my $dbname = (db_version_pg() < 8.0) ? 'template1' : 'postgres';
-    return "psql -X -h $conf->{db_host} -p $conf->{db_port} -U postgres -d $dbname -f $script";
+    return "psql -X -h $conf->{db_host} -p $conf->{db_port} -U postgres -d postgres -f $script";
 }
 
 sub _import_db_cmd_mysql {
@@ -2612,7 +2604,7 @@ sub _import_db_cmd_mysql {
 
 sub _import_db_working_files {
     my ($conf) = @_;
-    return  unless ($conf->{db_working_files_dir});
+    return unless $conf->{db_working_files_dir};
     my $dir = File::Spec->catfile($conf->{path}, $conf->{db_working_files_dir});
     if (! -d $dir) {
         warn "Db working files dir $dir not found.";
@@ -2903,6 +2895,7 @@ sub db_version_pg {
     # Some examples of psql --version output:
     # psql (PostgreSQL) 7.3.19-RH
     # psql (PostgreSQL) 8.2.5
+    # psql (PostgreSQL) 9.5.3
     my $raw = `psql --version 2>/dev/null`;
     $raw =~ s/\n.*//s;  # keep only the first line
     return $raw if $arg{raw};

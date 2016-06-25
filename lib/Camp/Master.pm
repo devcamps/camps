@@ -1015,6 +1015,12 @@ be provided in your configuration file.
 
 Defaults to I<path> + '/catalogs/' + I<catalog>.
 
+=item ic_socket (I<Interchange only>)
+
+The path where the Interchange socket file will reside
+
+Defaults to I<icroot> + '/var/run/socket'
+
 =item railsdir (I<Rails only>)
 
 The path where rails will live within the camp; defaults to "rails" under the camp's path.
@@ -1420,6 +1426,7 @@ sub config_hash {
         if (has_ic()) {
             $conf_hash->{icroot} = File::Spec->catfile($conf_hash->{path}, 'interchange');
             $conf_hash->{cgidir} = File::Spec->catfile($conf_hash->{path}, 'cgi-bin');
+            $conf_hash->{ic_socket} = File::Spec->catfile($conf_hash->{icroot}, 'var/run/socket');
         }
         $conf_hash->{docroot}   = File::Spec->catfile($conf_hash->{path}, 'htdocs');
         if (has_rails()) {
@@ -1791,7 +1798,7 @@ sub prepare_ic {
     # Prepare the CGI linker.
     $file = "$conf->{icroot}/bin/compile_link";
     if (-x $file) {
-        do_system("$file -s $conf->{icroot}/var/run/socket --source $conf->{icroot}/src");
+        do_system("$file -s $conf->{ic_socket} --source $conf->{icroot}/src");
         if (! -d $conf->{cgidir}) {
             mkdir $conf->{cgidir} or die "error making cgi-bin directory: $!\n";
         }

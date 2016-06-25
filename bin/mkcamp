@@ -139,13 +139,13 @@ END
 }
 else {
     server_control(
-        service => 'all',
-        action  => 'restart',
-    );
-    server_control(
         service => 'app',
         action  => 'init',
     ) if has_app();
+    server_control(
+        service => 'all',
+        action  => 'restart',
+    );
 }
 
 

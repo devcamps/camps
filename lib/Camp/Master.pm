@@ -3029,6 +3029,7 @@ sub camp_list {
 sub run_post_mkcamp_command {
     my $conf = config_hash();
     my $cmd = $conf->{post_mkcamp_command};
+    print $cmd, "\n";
     $cmd and return do_system_soft($cmd) == 0;
     return;
 }

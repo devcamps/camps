@@ -149,6 +149,7 @@ sub origin_initdb {
         "-D $conf->{lvm_origin_data}",
         '-n',
         '-U', 'postgres',
+        $conf->{initdb_args},
     );
 
     my $cmd = join(' ', @args);

@@ -19,9 +19,10 @@ my %opt;
 GetOptions(
     \%opt,
     qw(
+        initdb_args|initdb-args=s
         number|n=i
         username|u=s
-        use_origin|o=i
+        use_origin|use-origin|o=i
         help|h
     )
 );
@@ -68,6 +69,7 @@ elsif ($action eq 'umount') {
     Camp::LVM::umount_fs($config_hash);
 }
 elsif ($action eq 'initdb') {
+    $config_hash->{initdb_args} = $opt{initdb_args} if $opt{initdb_args};
     Camp::LVM::origin_initdb($config_hash);
 }
 elsif ($action eq 'analyze') { 
@@ -89,13 +91,13 @@ sub show_usage {
     print $msg. "\n" if $msg;
     print <<EOH;
 Usage:
-    camp-lvm create  -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
-    camp-lvm remove  -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
-    camp-lvm mount   -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
-    camp-lvm umount  -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
-    camp-lvm initdb  --use_origin=1
-    camp-lvm analyze -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
-    camp-lvm status  -n|--number=XX -u|--username=USERNAME -o|--use_origin=1
+    camp-lvm create  -n|--number=XX -u|--username=USERNAME -o|--use-origin=1
+    camp-lvm remove  -n|--number=XX -u|--username=USERNAME -o|--use-origin=1
+    camp-lvm mount   -n|--number=XX -u|--username=USERNAME -o|--use-origin=1
+    camp-lvm umount  -n|--number=XX -u|--username=USERNAME -o|--use-origin=1
+    camp-lvm initdb  --use-origin=1 [--initdb-args=...]
+    camp-lvm analyze -n|--number=XX -u|--username=USERNAME -o|--use-origin=1
+    camp-lvm status  -n|--number=XX -u|--username=USERNAME -o|--use-origin=1
     camp-lvm resize  -n|--number=XX -u|--username=USERNAME
     camp-lvm resize_all
 
@@ -110,7 +112,10 @@ Options:
     Specify the camp number for this camp.
 
 -o 1
---use_origin=1
+--use-origin=1
+
+--initdb-args
+    Additional options passed verbatim to initdb, such as -k for data checksums.
 
 --help
     See this help.

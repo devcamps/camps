@@ -29,12 +29,14 @@ initialize(
 );
 
 my $conf = config_hash();
+my $host = $conf->{db_host};
 my $port = $conf->{db_port};
 
 # setup environment
 if ($conf->{db_type} eq 'pg') {
     $ENV{PGUSER}     ||= $conf->{db_default_user};
     $ENV{PGDATABASE} ||= $conf->{db_default_database};
+    $ENV{PGHOST}     ||= $host;
     $ENV{PGPORT}     ||= $port;
 }
 else {
@@ -57,7 +59,7 @@ with-camp - wrapper to run another command with camp awareness
 
 =head1 VERSION
 
-3.05
+3.06
 
 =head1 DESCRIPTION
 
@@ -71,7 +73,7 @@ David Christensen E<lt>david@endpoint.comE<gt> and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2015 End Point Corporation, https://www.endpoint.com/
+Copyright (C) 2006-2016 End Point Corporation, https://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

@@ -1213,9 +1213,10 @@ Sane values appear to be in the 5-15 second range.  Defaults to 5 seconds; set t
 
 Space-separated list of database names that are expected to live within your camp's database server.
 
-It's important to provide this list, particularly for Postgres, so your user account's .pgpass file
-can be updated appropriately to allow easy access to each database specified.  Ordinarily, only one
-database would be listed.
+This was formerly used to set up Postgres password access to each
+database in your user account's .pgpass file, but now each database
+user's password is applied to all databases ("*") there. It is still up
+to you to configure Postgres to allow appropriate access.
 
 =item camp_subdirectories
 
@@ -2228,8 +2229,7 @@ sub _prepare_camp_database_client_settings_pg {
     $pass_file_tmp->print( "$conf->{db_host}:$conf->{db_port}:*:postgres:$postgres_pass\n" );
     for my $role (@$roles) {
         my $pass = role_password( $role );
-        $pass_file_tmp->print("$conf->{db_host}:$conf->{db_port}:$_:$role:$pass\n")
-            for @$dbnames;
+        $pass_file_tmp->print("$conf->{db_host}:$conf->{db_port}:*:$role:$pass\n");
     }
     $pass_file_tmp->print($old_pass_data);
     $pass_file_tmp->close or die "Couldn't close $pass_file_tmp: $!\n";

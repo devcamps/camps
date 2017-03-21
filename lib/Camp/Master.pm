@@ -2607,7 +2607,7 @@ sub _import_db_working_files {
     return unless $conf->{db_working_files_dir};
     my $dir = File::Spec->catfile($conf->{path}, $conf->{db_working_files_dir});
     if (! -d $dir) {
-        warn "Db working files dir $dir not found.";
+        warn "Skipping database working files directory not found: $dir\n";
         return;
     }
     my @working_files = glob "$dir/*.sql";

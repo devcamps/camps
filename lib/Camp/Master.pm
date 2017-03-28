@@ -368,6 +368,13 @@ If left unspecified for a given path, this effectively defaults to false.
 If provided with a Perly true value (non-blank, non-zero), the default behavior determined
 by I<default_link> is always used and the camp creator isn't given a choice in the matter.
 
+=item I<linkdepth>
+
+If provided with a Perly true value (non-blank, non-zero), all of the directories and files
+within the source directory at depth 1 will be linked within the target directory instead of
+the linking the directoy itself.  Useful for large htdocs dirs that have some assets tracked
+in git.
+
 =item I<exclude>
 
 May be provided with a single scalar entry or an array of such entries; each should
@@ -437,6 +444,15 @@ Here's an example of a file:
  allow_errors: 1
  remote_source: ssh
 
+ ---
+ source: /var/www/html/htdocs/
+ target: htdocs/
+ default_link: 1
+ always: 0
+ linkdepth: 1
+ # this will link every file adn directory within /var/www/html/htdocs/
+ # to $camp/htdocs/ the same as ln -s /var/www/html/htdocs/* $camp/htdocs/.
+
 =back
 
 =cut
@@ -465,6 +481,7 @@ sub process_copy_paths {
 
     for my $copy (@data) {
         my $link = defined($copy->{default_link}) && $copy->{default_link};
+        my $linkdepth = defined($copy->{linkdepth}) && $copy->{linkdepth};
 
         my $src = $copy->{source};
         $src = substitute_hash_tokens($src, $conf) if $copy->{parse_source};
@@ -490,13 +507,27 @@ sub process_copy_paths {
             }
             $link = lc($decision) eq 'n' if $decision;
         }
-        if ($link) {
+        if ($link and !$linkdepth) {
             print "Symlinking $target to $src.\n";
             if (-e $target) {
                 print "NOTE: $target already exists; no symlink will be added; skipping!\n";
                 next;
             }
             symlink($src, $target) or die "Failed to symlink: $!\n";
+        }
+        elsif ($link and $linkdepth) {
+            my @globs = glob("$src*");
+            for my $path (@globs) {
+                my $src = $path;
+                $path =~ m/([^\/]*$)/;
+                my $target = $target . $1;
+                print "Symlinking $target to $src.\n";
+                if (-e "$target") {
+                    print "NOTE: $target already exists; no symlink will be added; skipping!\n";
+                    next;
+                }
+                symlink("$src", "$target") or die "Failed to symlink: $!\n";
+            }
         }
         else {
             print "Rsyncing $src to $target.\n";

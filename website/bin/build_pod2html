@@ -1,0 +1,17 @@
+#!/bin/bash
+
+for path_suffix in bin lib/Camp
+do
+	for source_path in $(perldoc -r -l $path_suffix/*)
+	do 
+		echo "Working on $source_path"
+		base_name=$(basename $source_path .pm)
+		tmpfile=$(mktemp -p .)
+		perldoc -T -oHTML $source_path > $tmpfile
+		sed 's/<h1>/<\/h2>/g; s/<\/h1>/<\/h2>/g; s/^<meta http-equiv.*//g; s/^<\/head>//g;' $tmpfile | \
+			sed "s/^<body class='pod'>//g" | \
+			sed "s/^<html>.*/<?php\n    \$title = \"DevCamps Documentation: $base_name\";\n    \$page_type = 'doc';\n    include('..\/header.php');\n?>\n<h1>DevCamps Documentation: $base_name<\/h1>\n<div class=\"mixcase\">/g" | \
+			sed 's/^<\/body><\/html>/\n<?php\n    include("..\/doclist.php");?>\n<\/div>\n<?php\n    include("..\/footer.php");\n?>/g' > website/docs/$base_name.php
+		rm -f $tmpfile
+	done
+done

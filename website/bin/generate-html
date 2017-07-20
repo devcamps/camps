@@ -1,0 +1,20 @@
+#!/bin/sh
+
+for f in *.php
+do
+	echo "Working on $f"
+	base=$(basename $f .php)
+	if [ "$base" = index ]; then
+		uri=/
+	else
+		uri=/$base
+	fi
+	tmpfile=$(mktemp -p .)
+	REQUEST_URI=$uri php $f > $tmpfile
+	if [ $? -ne 0 ]; then
+		echo "Error running $f" >&2
+		exit 1
+	fi
+	chmod a+r $tmpfile
+	mv $tmpfile $base.html
+done

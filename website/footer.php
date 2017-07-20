@@ -5,7 +5,6 @@
         <div id="footer" class="fix">
             <div class="inner">
                 <div class="wrapper">
-                    <a id="hello" href="http://webchat.freenode.net/?channels=%23camps" target="_blank">Say hello</a>
 <?php
 
 $page = $_SERVER['REQUEST_URI'];
@@ -52,11 +51,6 @@ END;
 }
 
 echo $quote;
-?>
-<?php
-/*
-                    <a id="tour" href="#">Take a tour</a>
-*/
 ?>
                 </div>
             </div>

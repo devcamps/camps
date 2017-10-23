@@ -250,6 +250,25 @@ sub _db_control_pg {
     return;
 }
 
+sub _kill_open_files {
+    my $conf = shift;
+    return if $conf->{use_origin};
+    my $mount_point = $conf->{db_data};
+    my $username    = $conf->{system_user};
+
+    # return list of processes
+    my @pids = `lsof -t +D $mount_point`;
+    chomp(@pids);
+    if (@pids) {
+        system("su $username -c \"kill @pids\" ") == 0
+          or die "Error killing open file processes for $mount_point.\n";
+        sleep 5;
+        system("su $username -c \"kill -9 @pids\" ") == 0
+          or die "Error forcefully killing open file processes for $mount_point.\n";
+    }
+    return;
+}
+
 sub mount_active {
     my $conf = shift;
 
@@ -301,9 +320,11 @@ sub umount_fs {
         return;
     }
 
-    # unmount the camp volume
+    # kill open files and unmount the camp volume
+    _kill_open_files($conf);
+
     system("/bin/umount -l $mount_point");
-    if ($? > 0) { warn "Failed to umount $mount_point"; }
+    if ($? > 0) { warn "Failed to umount $mount_point" };
     my $max_wait = 10;
     while ( -d "$mount_point/base" && $max_wait-- ) {
         sleep 2;

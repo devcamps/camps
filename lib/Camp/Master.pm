@@ -2853,11 +2853,17 @@ sub db_version_pg {
 
 sub db_version_mysql {
     my %arg = @_;
+    # This naively assumes that the MySQL client libraries are the
+    # same as the server version. That makes it much easier and works for now.
 
     # Some examples of $raw output:
     # 5.7.15-9
-    # 10.1.20-MariaDB
-    my $raw = `echo 'select version()' | mysql | grep -v 'version' 2>/dev/null`;
+
+    my %settings = camp_db_config();
+    my ($user, $pass) = @settings{qw( user password )};
+
+    my $opts = "-u $user -p'$pass'";
+    my $raw = `echo 'select version()' | mysql $opts | grep -v version 2>/dev/null`;
     $raw =~ s/\n.*//s;  # keep only the first line if nessisary
     return $raw if $arg{raw};
     my ($full, $numeric, $major_minor) = $raw =~ /(((\d+\.\d+)(?:\.\d+)?)\S*)/;

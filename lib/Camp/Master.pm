@@ -58,7 +58,7 @@ our $VERSION = '3.06';
     roles
     roles_path
     role_sql
-    run_post_mkcamp_command
+    run_mkcamp_command
     server_control
     set_camp_comment
     set_camp_user
@@ -2973,10 +2973,16 @@ sub camp_list {
     return @result;
 }
 
-sub run_post_mkcamp_command {
+sub run_mkcamp_command {
+    my $token = shift;
     my $conf = config_hash();
-    my $cmd = $conf->{post_mkcamp_command};
-    $cmd and return do_system_soft($cmd) == 0;
+    my $camp = $conf->{path};
+
+    if (my $cmd = $conf->{"${token}_mkcamp_command"}) {
+        chdir($camp) or die "Can not change directory to $camp: $!";
+        return do_system_soft($cmd) == 0;
+    }
+
     return;
 }
 

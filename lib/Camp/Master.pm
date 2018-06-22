@@ -2393,7 +2393,9 @@ EOF
 sub _initialize_camp_database_mysql {
     my $conf = shift;
     _render_database_config($conf)  unless ($conf->{_did_render_database_config});
-    my $cmd = "mysql_install_db --datadir=$conf->{db_data} --defaults-file=$conf->{db_conf}";
+    my $cmd  = (db_version_mysql() >= 5.7) ?
+      "mysqld  --defaults-file=$conf->{db_conf} --initialize-insecure --datadir=$conf->{db_data}" :
+      "mysql_install_db --datadir=$conf->{db_data} --defaults-file=$conf->{db_conf}";
     print "Preparing database instance:\n$cmd\n";
     system($cmd) == 0 or die "Error executing mysql_install_db!\n";
     return 1;
@@ -2771,7 +2773,13 @@ sub _db_control_mysql {
         return _db_control_mysql( 'start' );
     }
     elsif ($action eq 'start') {
-        $cmd = "nohup mysqld_safe --defaults-file=$conf->{db_conf} > $conf->{db_tmpdir}/nohup.out 2>&1 &";
+        my $version = db_version_mysql();
+        my @opt = ('nohup');
+        push @opt, $version >= 5.7 ? 'mysqld' : 'mysqld_safe';
+        push @opt, "--defaults-file=$conf->{db_conf}";
+        push @opt, "--port=$conf->{db_port} --daemonize" if $version >= 5.7;
+        push @opt, "> $conf->{db_tmpdir}/nohup.out 2>&1 &";
+        $cmd = join(' ', @opt);
     }
     else {
         $action = 'shutdown' if $action eq 'stop';
@@ -2838,6 +2846,27 @@ sub db_version_pg {
     $raw =~ s/\n.*//s;  # keep only the first line
     return $raw if $arg{raw};
     my ($full, $numeric, $major_minor) = $raw =~ /\s(((\d+\.\d+)(?:\.\d+)?)\S*)/;
+    return $full if $arg{full};
+    return $numeric if $arg{numeric};
+    return $major_minor;
+}
+
+sub db_version_mysql {
+    my %arg = @_;
+    # This naively assumes that the MySQL client libraries are the
+    # same as the server version. That makes it much easier and works for now.
+
+    # Some examples of $raw output:
+    # 5.7.15-9
+
+    my %settings = camp_db_config();
+    my ($user, $pass) = @settings{qw( user password )};
+
+    my $opts = "-u $user -p'$pass'";
+    my $raw = `echo 'select version()' | mysql $opts | grep -v version 2>/dev/null`;
+    $raw =~ s/\n.*//s;  # keep only the first line if nessisary
+    return $raw if $arg{raw};
+    my ($full, $numeric, $major_minor) = $raw =~ /(((\d+\.\d+)(?:\.\d+)?)\S*)/;
     return $full if $arg{full};
     return $numeric if $arg{numeric};
     return $major_minor;

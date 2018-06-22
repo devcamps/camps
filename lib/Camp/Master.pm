@@ -13,6 +13,7 @@ use File::Spec;
 use Data::Dumper;
 use User::pwent;
 use DBI;
+use Camp::LVM;
 use Exporter;
 use base qw(Exporter);
 
@@ -1201,6 +1202,14 @@ prior to processing the roles for that database; this gives an opportunity to in
 a known set of users/permissions, for instance, or initalize things in other ways needed prior to role
 creation.
 
+=item db_working_files_dir
+
+Sometimes when working in a camp a developer has SQL scripts that are in-progress and are needed when a
+database is refreshed.  These SQL files should be placed in a standard directory in each camp and 
+I<db_working_files_dir> should be the path to this dir relative to the camp's path.  Files in this dir
+that end in '.sql' will be executed in the camp's database in lexical order when the database is created
+or refreshed.
+
 =item db_sleep_time
 
 Allows specification of a number of seconds to sleep between starting the database server at camp creation
@@ -1217,6 +1226,20 @@ This was formerly used to set up Postgres password access to each
 database in your user account's .pgpass file, but now each database
 user's password is applied to all databases ("*") there. It is still up
 to you to configure Postgres to allow appropriate access.
+
+=item use_lvm_database_snapshots
+
+If using LVM snapshots for cloning databases for each camp, then set this to 'yes'.
+
+=item lvm_snapshot_size
+
+When using LVM snapshots for databases, you can specifiy the initial snapshot size.  Defaults to 3G.  When
+running the command `camp_lvm resize` or `camp_lvm resize_all`, camp snapshots may also be increased 
+by this same size if their usage exceeds 50%.
+
+=item lvm_origin_volume
+
+The LVM volume name to clone for snapshots.  For example, lvm_origin_volume:vg0/CampOriginDB.
 
 =item camp_subdirectories
 
@@ -2080,6 +2103,13 @@ sub _database_exists_check {
     die "Database already exists in $conf->{db_path}; must specify 'replace' to overwrite it.\n"
         unless $replace;
     _db_type_dispatcher( '_database_running_check' )->( @_ );
+
+    # Release the database snapshot, if we're using LVM
+    if ($conf->{use_lmv_database_snapshots}) {
+        my $base_path = base_path();
+        system("/bin/sudo $base_path/bin/camp_lvm remove --number=$conf->{number} --username=$conf->{system_user}");
+    }
+
     # remove old database's binary data.
     rmtree($conf->{db_path}, 0, 1);
     return;
@@ -2279,30 +2309,36 @@ sub _initialize_camp_database_pg {
     # PostgreSQL initdb before version 8.0 didn't have the -A or --pwfile options,
     # so we have to basically reimplement them manually.
     my $password_pain = (db_version_pg() < 8.0);
-
     my $postgres_pass = $conf->{db_pg_postgres_pass} or die "No password determined for postgres user!\n";
-    # Run initdb to make new database cluster.
-    my $tmp = File::Temp->new( DIR => camp_user_tmpdir(), UNLINK => 0 );
-    $tmp->print( "$postgres_pass\n" );
-    $tmp->close or die "Couldn't close $tmp: $!\n";
 
-    my @args = (
-        "-D $conf->{db_data}",
-        '-n',
-        '-U', 'postgres',
-    );
-    if (! $password_pain) {
-        push @args, '-A', 'md5', "--pwfile=$tmp";
+    # Create snapshot of database if we are using LVM
+    my $tmp;
+    if ($conf->{use_lmv_database_snapshots}) {
+        my $base_path = base_path();
+	system("/bin/sudo $base_path/bin/camp_lvm create --number=$conf->{number} --username=$conf->{system_user}");
     }
-    push @args, "-E $conf->{db_encoding}"
-        if $conf->{db_encoding};
-    push @args, "--locale=$conf->{db_locale}"
-        if $conf->{db_locale};
-    my $cmd = 'initdb ' . join(' ', @args);
-    print "Preparing database cluster:\n$cmd\n";
-    system($cmd) == 0 or die "Error executing initdb!\n";
+    else {
+        # Run initdb to make new database cluster.
+        $tmp = File::Temp->new( DIR => camp_user_tmpdir(), UNLINK => 0 );
+        $tmp->print( "$postgres_pass\n" );
+        $tmp->close or die "Couldn't close $tmp: $!\n";
 
-    if ($password_pain) {
+        my @args = (
+            "-D $conf->{db_data}",
+            '-n',
+            '-U', 'postgres',
+        );
+        if (! $password_pain) {
+            push @args, '-A', 'md5', "--pwfile=$tmp";
+        }
+        push @args, "-E $conf->{db_encoding}"      if $conf->{db_encoding};
+        push @args, "--locale=$conf->{db_locale}"  if $conf->{db_locale};
+        my $cmd = 'initdb ' . join(' ', @args);
+        print "Preparing database cluster:\n$cmd\n";
+        system($cmd) == 0 or die "Error executing initdb!\n";
+    }
+
+    if ($password_pain || $conf->{use_lvm_database_snapshots}) {
         # The default pg_hba.conf uses ident authentication, which won't work since
         # we're user e.g. "bob" trying to connect as "postgres", so switch temporarily
         # to trust auth.
@@ -2345,7 +2381,9 @@ END
         db_control('stop') or die "Error stopping new camp database!\n";
     }
 
-    unlink $tmp or die "Error unlinking $tmp: $!\n";
+    if ($tmp) {
+        unlink $tmp or die "Error unlinking $tmp: $!\n";
+    }
 
     # Create SSL certificate
     if (defined $conf->{db_pg_ssl_active} and $conf->{db_pg_ssl_active}) {
@@ -2379,11 +2417,8 @@ EOF
         $tmpfile->close;
 
         do_system("openssl genrsa -out $key_path");
-
         chmod 0600, $key_path or die "Can't change permissions on $key_path: 0600\n";
-
         do_system("openssl req -new -x509 -days 3650 -key $key_path -out $crt_path -config $tmpfile");
-
         unlink($tmpfile) or die "Error unlinking $tmpfile: $!\n";
     }
 
@@ -2546,6 +2581,7 @@ sub _import_camp_data {
         print "Processing script '$script':\n$cmd\n";
         system($cmd) == 0 or die "Error importing data\n";
     }
+    _import_db_working_files($conf);
     return;
 }
 
@@ -2565,6 +2601,23 @@ sub _import_db_cmd_pg {
 sub _import_db_cmd_mysql {
     my ($script, $conf) = @_;
     return 'mysql ' . camp_mysql_options( user => 'root', no_database => 1 ) . " < $script";
+}
+
+sub _import_db_working_files {
+    my ($conf) = @_;
+    return  unless ($conf->{db_working_files_dir});
+    my $dir = File::Spec->catfile($conf->{path}, $conf->{db_working_files_dir});
+    if (! -d $dir) {
+	warn "Db working files dir $dir not found.";
+	return;
+    }
+    my @working_files = glob "$dir/*.sql";
+    foreach my $file (@working_files) {
+        my $cmd = _import_db_cmd($file, $conf);
+        print "Processing db working file '$file':\n$cmd\n";
+        system($cmd) == 0 or warn "Error running db working file $file\n";
+    }
+    return;
 }
 
 sub prepare_database {

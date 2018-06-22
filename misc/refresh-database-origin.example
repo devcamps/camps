@@ -1,0 +1,117 @@
+#!/bin/bash
+
+### This is an example script for reference when using LVM snapshopts for
+### camp databases.  This script should be run as the camp user, which also
+### will need sudo access to run some camp scripts as root.  Please update
+### /etc/sudoers with these changes as well:
+##
+## Defaults:camp !requiretty
+## camp  ALL = (ALL) NOPASSWD: /home/camp/bin/re, /home/camp/bin/camp_lvm, /home/camp/bin/refresh-camp
+##
+## Defaults:%camp !requiretty
+## %camp ALL = (ALL) NOPASSWD: /home/camp/bin/camp_lvm
+##
+### In the example file below, the word "company" is used as a place-holder
+### for the 
+
+
+# This script will refresh the origin database with the latest db
+# dump from production so that all camp snapshots can get updated.
+
+die() {
+   echo "$*"
+   exit 1
+}
+
+
+camp_type=company
+root_dir=$HOME/$camp_type
+database_list="company_db"
+open_camps=`$HOME/bin/camp-info -A | grep $camp_type | awk '{ print $1 "," $2 }'`
+
+
+echo "# Getting db dumps from production"
+cd $root_dir/dbdump/tmp || die "cannot cd to dir $root_dir/dbdump/tmp"
+for db in $database_list
+do
+    user=$db
+    dumpfile=$db.pg_dump
+    tmpfile=$dumpfile.work
+    echo "Dumping database $db"
+    /bin/pg_dump -h db.company.com -C -U $user $db -f $tmpfile
+    if [ $? -ne 0 ]; then
+        die "Error dumping database; leaving workfile"
+    fi
+    mv -f $tmpfile $dumpfile || die "cannot mv $tmpfile $dumpfile"
+done
+echo "Done with db dumps"
+
+
+echo "# Do any prep work on db dumps before import"
+cd $root_dir/dbdump/tmp || die "cannot cd to dir $root_dir/dbdump/tmp"
+for db in $database_list
+do
+    cp -a $db.pg_dump $db.pg_dump.new || die "Cannot cp $db.pg_dump $db.pg_dump.new"
+    perl -pi -e "s/ENCODING = 'SQL_ASCII'/ENCODING = 'UTF8'/" $db.pg_dump.new
+done
+
+
+echo "# Stop all camp databases, unmount and remove all camp snapshots"
+for line in $open_camps
+do
+    num=`echo "$line" | cut -d ',' -f 1`
+    user=`echo "$line" | cut -d ',' -f 2`
+    echo "Stopping and removing database for camp$num $user"
+    sudo -n -u $user $HOME/bin/re --db --stop $num || die "Failed to stop database for camp $num for user $user"
+    sudo -n $HOME/bin/camp_lvm remove -n $num -u $user || die "Failed to remove snapshot for camp $num for user $user"
+done
+
+
+echo "# Start up origin db"
+cd $root_dir || die "Cannot cd $root_dir"
+/bin/pg_ctl -D $root_dir/pgsql.origin/ -l $root_dir/pg_origin_startup.log start || die "Cannot start origin database"
+sleep 2
+psql -U postgres -p 54321 -c "SELECT version()" || die "Cannot connect to origin database"
+
+
+echo "# Rename the old databases as a temporary backup"
+for db in $database_list
+do
+    backupdb="bak_$db"
+    psql -U postgres -p 54321 -c "ALTER DATABASE $db RENAME TO $backupdb" || die "Cannot rename db $db to $backupdb"
+done
+
+
+echo "# Import the dumps"
+for db in $database_list
+do
+    time psql -U postgres -p 54321 < dbdump/tmp/$db.pg_dump.new 
+    if [ $? -ne 0 ]; then
+        die "Failed to import db dump dbdump/tmp/$db.pg_dump.new"
+    fi
+done
+
+
+echo "# Drop the temporary backup databases"
+for db in $database_list
+do
+    backupdb="bak_$db"
+    psql -U postgres -p 54321 -c "DROP DATABASE $backupdb" || die "Cannot drop backup database $backupdb"
+done
+
+
+echo "# Shutdown the origin db"
+/bin/pg_ctl -D $root_dir/pgsql.origin/ -l $root_dir/pg_origin_startup.log -m immediate stop || die "Cannot stop the origin database"
+
+
+echo "# Create all needed camp snapshots, start up all the camp databases"
+for line in $open_camps
+do
+    num=`echo "$line" | cut -d ',' -f 1`
+    user=`echo "$line" | cut -d ',' -f 2`
+    echo "Creating and starting database for camp$num $user"
+    sudo -n -u $user $HOME/bin/refresh-camp --db --number $num || die "Cannot start database for camp $num for user $user"
+done
+
+
+echo "# Done with refresh."

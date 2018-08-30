@@ -1714,10 +1714,8 @@ sub vcs_checkout {
             }
 
             push @cmds, [
-                '(cd %s && git checkout --track -b %s %s/%s)',
+                '(cd %s && git checkout %s)',
                 $conf->{path},
-                $branch,
-                $repo,
                 $branch,
             ];
         }

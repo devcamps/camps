@@ -2857,7 +2857,7 @@ sub _db_control_pg {
             or warn "Halting $action\n";
     };
 
-    my $cmd = "PGHOST=$conf->{db_host} pg_ctl -D $conf->{db_data} -l $conf->{db_tmpdir}/pgstartup.log -m fast -w $action";
+    my $cmd = "PGHOST=$conf->{db_host} setsid pg_ctl -D $conf->{db_data} -l $conf->{db_tmpdir}/pgstartup.log -m fast -w $action";
     do_system_soft($cmd) == 0 and return 1;
     return;
 }

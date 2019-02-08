@@ -2,12 +2,12 @@
 <html lang="en">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-        <title><?php echo $title ?></title>
+        <title><?php echo isset($title) ? $title : 'DevCamps' ?></title>
         <link href="/main.css" type="text/css" rel="stylesheet" />
         <link href="/img/devcamps-favicon.png" type="image/png" rel="shortcut icon" />
     </head>
     <body<?php
-    if ($page_type == 'doc') echo ' id="body" class="doc"';
+    if (isset($page_type) && $page_type == 'doc') echo ' id="body" class="doc"';
 ?>>
         <div id="header" class="fix">
             <div class="wrapper">

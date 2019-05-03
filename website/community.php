@@ -10,8 +10,8 @@
 <h2>Mailing lists</h2>
 
 <p>
-User and developer discussion: <a href="https://mail.endcrypt.com/mailman/listinfo/camps-users">camps-users</a><br />
-Source code commit notifications: <a href="https://mail.endcrypt.com/mailman/listinfo/camps-commits">camps-commits</a>
+User and developer discussion: <a href="https://www.interchangecommerce.org/mailman/listinfo/camps-users">camps-users</a><br />
+Source code commit notifications: <a href="https://www.interchangecommerce.org/mailman/listinfo/camps-commits">camps-commits</a>
 </p>
 
 <h2>Issue tracking</h2>

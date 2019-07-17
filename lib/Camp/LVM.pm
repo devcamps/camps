@@ -224,29 +224,10 @@ sub _database_shutdown {
     if (system("pgrep -u $username -f $mount_point") == 0) {
         # stop running postgres
         my $cmd = "pkill -u $username -f $mount_point";
-        #system("su $username -c '$cmd'") == 0
         system($cmd) == 0
             or die "Error stopping running Postgres instance!\n";
         sleep 4;
     }
-    return;
-}
-
-sub _db_control_pg {
-    my ($conf, $action) = @_;
-    my $mount_point = $conf->{use_origin} ? $conf->{lvm_origin_data} : $conf->{db_data};
-    my $logdir = $conf->{type_path};
-    # FIXME: add option for camp
-
-    if ($action eq 'stop') {
-        # we use a little more agressive function to stop
-        _database_shutdown($conf);
-        return;
-    }
-
-    my $cmd = "PGHOST=$conf->{db_host} pg_ctl -D $mount_point -l $logdir/pgstartup.log -m fast -w $action";
-    my $result = system("su camp -c '$cmd'");
-    $result == 0 and return 1;
     return;
 }
 
@@ -425,11 +406,11 @@ sub resize_snapshots {
         print "Checking @{$c}\n" if $verbose;
 
         # validate lvs data
-        if  (!($group && $vol && $size)) {
+        if (!($group && $vol && $size)) {
             print "lvs line not a valid snapshot skipping...\n";
             next;
         }
-        elsif ($vol !~/snap\-\w+-camp\d/) {
+        elsif ($vol !~ /snap-\w+-camp\d/) {
             print "lvs line not a camp snapshot skipping...\n";
             next;
         }

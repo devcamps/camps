@@ -17,7 +17,7 @@ use Camp::LVM;
 use Exporter;
 use base qw(Exporter);
 
-our $VERSION = '3.06';
+our $VERSION = '3.07';
 
 @Camp::Master::EXPORT = qw(
     base_path
@@ -675,34 +675,71 @@ sub get_camp_info {
 }
 
 sub get_all_camp_info {
-    my $username = shift;
-    my $dbh = dbh();
-    my $sth;
-    my $out = '';
-    if ($username) {
-        $out = "Camp #\tCamp Type\tCamp Creation Date\t\tComment\n";
-        $sth = $dbh->prepare('SELECT * FROM camps WHERE username = ? ORDER BY camp_number');
-        $sth->execute($username);
+    my $opt = shift;
+    if ($opt and !ref($opt)) {
+        $opt = { username => $opt };
     }
-    else {
-        $out = "Camp #\tUsername\tCamp Type\tCamp Creation Date\t\tComment\n";
-        $sth = $dbh->prepare('SELECT * FROM camps ORDER BY camp_number');
-        $sth->execute();
-    }
+    $opt = {} if !ref($opt);
 
     my @rows;
-    my $username_maxlen = 0;
-    while ( my $row = $sth->fetchrow_hashref() ) {
-        $username_maxlen = length($row->{username})  if ($row->{username} && length($row->{username}) > $username_maxlen);
+
+    my @field_labels = (
+        camp_number => 'Camp #',
+        username    => 'Username',
+        camp_type   => 'Camp Type',
+        create_date => 'Camp Creation Date',
+        comment     => 'Comment',
+    );
+    my (@fields, @labels);
+    if ($opt->{number_only}) {
+        # No heading row when showing only camp numbers
+        @fields = 'camp_number';
+    }
+    else {
+        push @rows, { @field_labels };
+        while (my ($f, $l) = splice(@field_labels, 0, 2)) {
+            # Don't include username when reporting only on this user
+            next if !$opt->{username} and $f eq 'username';
+            push @fields, $f;
+            push @labels, $l;
+        }
+    }
+
+    my $dbh = dbh();
+    my ($where, @args);
+    if ($opt->{username}) {
+        $where = 'WHERE username = ?';
+        @args = $opt->{username};
+    }
+    else {
+        $where = '';
+    }
+    my $camp_postgres_db = camp_db_type() eq 'pg';
+    my $field_list = join(', ',
+        map {
+            ($camp_postgres_db and $_ eq 'create_date') ? 'create_date::timestamp(0) AS create_date' : $_
+        } @fields);
+    my $sth = $dbh->prepare("SELECT $field_list FROM camps $where ORDER BY camp_number");
+    $sth->execute(@args);
+
+    # Walk the whole result set first to get column widths
+    my %max_len = map { $fields[$_] => length($labels[$_]) } 0..$#fields;
+    while (my $row = $sth->fetchrow_hashref) {
+        # Ensure no internal space in the timestamp field
+        $row->{create_date} =~ s/ /T/ if $row->{create_date};
         push @rows, $row;
+        next if $opt->{number_only};
+        for my $f (@fields) {
+            if (defined($row->{$f})) {
+                my $len = length($row->{$f});
+                $max_len{$f} = $len if $len > $max_len{$f};
+            }
+        }
     }
-    $sth->finish();
-    my $fmt = ($username) ? "   %s\t%s\t\t%s\t\t%s\n" : "   %s\t%-${username_maxlen}s\t%s\t\t%s\t\t%s\n";
-    my @fields = ($username) ? qw/camp_number camp_type create_date comment/ : qw/camp_number username camp_type create_date comment/;
-    for my $r (@rows) {
-        $out .= sprintf($fmt, @{$r}{@fields});
-    }
-    return $out;
+    $sth->finish;
+
+    my $fmt = $opt->{number_only} ? '%s' : join('  ', map { "%-$max_len{$_}s" } @fields);
+    return join("\n", map { sprintf($fmt, @{$_}{@fields}) } @rows) . "\n";
 }
 
 sub set_camp_comment {
@@ -3114,7 +3151,7 @@ Ethan Rowe and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2016 End Point Corporation, https://www.endpoint.com/
+Copyright (C) 2006-2020 End Point Corporation, https://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

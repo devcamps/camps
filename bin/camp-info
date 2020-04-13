@@ -66,18 +66,15 @@ if ($opt{help}) {
     exit;
 }
 
-# All camps just for this user
-if ($opt{all}) {
-    my $username = getpwuid($<);
-    my $info = Camp::Master::get_all_camp_info( $username );
-    print $info;
-    exit;
-}
-
-# All camps on system
-if ($opt{A}) {
-    my $info = Camp::Master::get_all_camp_info();
-    print $info;
+# All camps for this user or whole system
+if ($opt{all} or $opt{A}) {
+    my $opt = {};
+    # For this user only
+    if ($opt{all}) {
+        $opt->{username} = getpwuid($<);
+    }
+    $opt->{number_only} = 1 if $opt{number};
+    print Camp::Master::get_all_camp_info($opt);
     exit;
 }
 
@@ -112,8 +109,8 @@ my $sep = $opt{separator} || qq{\n};
 
 print join $sep,
     map {
-	($display_output_headers ? "$_: " : '')
-            . $info->{$_}
+        ($display_output_headers ? "$_: " : '')
+        . $info->{$_}
     } @requested_fields;
 print "\n" unless $opt{'no-newline'};
 
@@ -127,7 +124,7 @@ camp-info - camp information getter/setter
 
 =head1 VERSION
 
-3.05
+3.06
 
 =head1 AUTHOR
 
@@ -135,7 +132,7 @@ Spencer Christensen, Ethan Rowe, and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2015 End Point Corporation, https://www.endpoint.com/
+Copyright (C) 2006-2020 End Point Corporation, https://www.endpoint.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

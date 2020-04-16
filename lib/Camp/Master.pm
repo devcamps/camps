@@ -699,7 +699,7 @@ sub get_all_camp_info {
         push @rows, { @field_labels };
         while (my ($f, $l) = splice(@field_labels, 0, 2)) {
             # Don't include username when reporting only on this user
-            next if !$opt->{username} and $f eq 'username';
+            next if $opt->{username} and $f eq 'username';
             push @fields, $f;
             push @labels, $l;
         }

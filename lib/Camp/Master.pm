@@ -526,9 +526,9 @@ sub run_post_processing {
             local $@;
             eval {
                 -e $cmd
-                    or die "File '$cmd' cannot be found";
+                    or die "File '$cmd' cannot be found\n";
                 -x $cmd
-                    or die "'$cmd' is not executable";
+                    or die "'$cmd' is not executable\n";
             };
 
             if (my $err = $@) {

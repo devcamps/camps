@@ -1,5 +1,7 @@
 package Camp::Master;
 
+use 5.14.0;
+
 use strict;
 use warnings;
 use Cwd;
@@ -2630,12 +2632,51 @@ sub _import_db_cmd {
 
 sub _import_db_cmd_pg {
     my ($script, $conf) = @_;
-    return "psql -X -h $conf->{db_host} -p $conf->{db_port} -U postgres -d postgres -f $script";
+
+    my $psql = "psql -X -h $conf->{db_host} -p $conf->{db_port} -U postgres -d postgres";
+
+    if (my $cat = _compression_cat($script)) {
+        return "$cat $script | $psql";
+    }
+
+    return "$psql -f $script";
 }
 
 sub _import_db_cmd_mysql {
     my ($script, $conf) = @_;
-    return 'mysql ' . camp_mysql_options( user => 'root', no_database => 1 ) . " < $script";
+
+    my $mysql = 'mysql ' . camp_mysql_options( user => 'root', no_database => 1 );
+
+    if (my $cat = _compression_cat($script)) {
+        return "$cat $script | $mysql";
+    }
+
+    return "$mysql < $script";
+}
+
+{
+    my %cat_map = qw/
+        gz  zcat
+        bz  bzcat
+        xz  xzcat
+        lz  lzcat
+    /;
+
+    sub _compression_cat {
+        local $_ = shift;
+
+        # Get the supported compression extension from the file
+        my ($type) = /[.](gz|bz2?|xz|lzma)$/aai;
+
+        # Give up if we can't find one
+        return unless $type;
+
+        # Limit variation
+        my $first_2 = substr (lc ($type), 0, 2);
+
+        # Return corresponding `cat` command
+        return $cat_map{ $first_2 };
+    }
 }
 
 sub _import_db_working_files {

@@ -526,13 +526,13 @@ sub run_post_processing {
             local $@;
             eval {
                 -e $cmd
-                    or die "File '$cmd' cannot be found\n";
+                    or die "File '$cmd' cannot be found.\n";
                 -x $cmd
-                    or die "'$cmd' is not executable\n";
+                    or die "'$cmd' is not executable.\n";
             };
 
             if (my $err = $@) {
-                chop ($err);
+                chomp ($err);
                 if ($script->{allow_errors}) {
                     warn "$err Skipping.\n";
                     next SCRIPT;

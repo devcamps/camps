@@ -46,21 +46,26 @@ if (!$showpod) {
         if $< != camp_user_obj()->uid()
     ;
 
+    my @post_ops = qw/refresh-camp/;
+
     if ($opt{vcs}) {
         vcs_refresh();
         $operation++;
+        push @post_ops, 'vcs';
     }
 
     if ($opt{db}) {
         # Run prepare_database with the force flag so it'll overwrite the existing one.
         prepare_database(1);
         $operation++;
+        push @post_ops, 'db';
     }
 
     if ($opt{config}) {
         # Run install_templates to rebuild templated config files and install them
         install_templates();
         $operation++;
+        push @post_ops, 'config';
     }
 
     if ($opt{files}) {
@@ -70,9 +75,13 @@ if (!$showpod) {
         process_copy_paths();
 
         $operation++;
+        push @post_ops, 'files';
     }
 
-    unless ($operation) {
+    if ($operation) {
+        run_post_processing(@post_ops);
+    }
+    else {
         $errmsg = 'Please specify the type(s) of refresh to perform.';
         $showpod++;
     }

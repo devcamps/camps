@@ -81,10 +81,13 @@ initialize(
     user => $<,
 );
 
+my @post_ops = qw/files config mkcamp/;
+
 # Make sure we have enough disk space for our camp and database
 if (!$opt{skipdb}) {
     ## check_camp_size();
     ## check_db_size();
+    push @post_ops, 'db';
 }
 
 # Get camp # and verify everything's ok with camp database
@@ -108,6 +111,7 @@ if ($opt{skipvcs}) {
 }
 else {
     vcs_checkout($opt{replace});
+    push @post_ops, 'vcs';
 }
 
 # Must prepare database before installing templates; do so now.
@@ -128,6 +132,9 @@ prepare_rails();
 
 # Create Apache files
 prepare_apache();
+
+# Run post-processing for corresponding sections
+run_post_processing(@post_ops);
 
 # (Re)start facilities
 if ($opt{skipdb}) {
@@ -158,6 +165,7 @@ however is appropriate.
 END
 }
 
+# Deprecated. Use "mkcamp" context in post-processing.yml
 run_post_mkcamp_command();
 
 =pod

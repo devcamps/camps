@@ -60,6 +60,7 @@ our $VERSION = '3.07';
     roles_path
     role_sql
     run_post_mkcamp_command
+    run_post_processing
     server_control
     set_camp_comment
     set_camp_user
@@ -317,6 +318,234 @@ sub create_camp_subdirectories {
 
 sub copy_paths_config_path {
     return File::Spec->catfile( type_path(), 'copy-paths.yml' );
+}
+
+sub post_processing_config_path {
+    return File::Spec->catfile( type_path(), 'post-processing.yml' );
+}
+
+=pod
+
+=head1 POST PROCESSING CONFIGURATION
+
+Your camp type may specify arbitrary code that should execute in response to
+context points for runs of either `mkcamp`, `refresh-camp`, or both, via the
+post-processing.yml file.
+
+The structure of the file is as follows:
+
+=over
+
+=item *
+
+Each code path to execute gets a "document" within the YAML structure.  This
+essentially means that you start each path's entry with the standard "---"
+YAML document header.  The result of this is that Camp::Master sees the code
+entries as an array.
+
+=item *
+
+Each code entry is a hash.  Each code hash B<must> provide the following key/value pairs:
+
+=over
+
+=item I<script>
+
+Definition section with metadata about the code to execute itself. I<script>
+itself must be a hash.
+
+=item I<script.path>
+
+The location of the file to execute.  This can be relative to the camp path,
+or absolute.
+
+=item I<context>
+
+An array that contains 1 or more sections whose use requests that the code
+found at I<script.path> is executed.
+
+The following are the possible context sections invoked by `mkcamp` and
+`refresh-camp`:
+
+=over
+
+=item I<mkcamp>
+
+Run for every invocation of mkcamp
+
+=item I<refresh-camp>
+
+Run for every invocation refresh-camp
+
+=item I<global>
+
+Run every time run_post_processing() routine is called. Note in core camp
+code, this is only when  mkcamp or refresh-camp is invoked. Because the system
+is open-ended, there is no reason that scripts written using Camp::Config or
+Camp::Master directly cannot create their own unique context sections for
+invocation. However, in addition to those new contexts, scripts identified as
+I<global> will also be executed. If you only want a script to run for `mkcamp`
+and `refresh-camp`, then apply those two context sections rather than
+I<global>.
+
+=item I<files>
+
+Run when the --files context is requested in refresh-camp or any invocation of
+mkcamp
+
+=item I<config>
+
+Run when the --config context is requested in refresh-camp or any invocation
+of mkcamp
+
+=item I<db>
+
+Run when --db context is request in refresh-camp or mkcamp when --skipdb is
+*not* set.
+
+=item I<vcs>
+
+Run when --vcs context is requested in refresh-camp or mkcamp when --skipvcs
+is *not* set.
+
+=back
+
+=back
+
+In addition, the following optional items may be provided under I<script>:
+
+=over
+
+=item I<script.parse>
+
+If provided with a Perly true value, the script path will be parsed for camp
+configuration tokens (see CAMP CONFIGURATION VARIABLES).  If not specified,
+parsing does not occur.
+
+=item I<script.allow_errors>
+
+If provided with a Perly true value, errors handling or executing the code in
+I<script.path> will be treated as warnings. Otherwise, handling or exeuction
+errors are fatal and abort the mkcamp/refresh-camp process.
+
+=back
+
+Because the YAML stream is converted to an array, the scripts are processed in
+order of specification. Thus, you can have dependencies between code execution
+order and they'll work out as long as you arrange them in the proper order in
+the file. However, if you do have such dependencies, it's important that they
+match up in context sections; otherwise, it is possible to have one script
+execute and another not if they do not share the same array of context
+sections.
+
+Here's an example configuration file:
+
+ ---
+ script:
+     path: bin/relative/to/camp/bar.pl
+     parse: 0
+     allow_errors: 1
+ context:
+     - db
+ ---
+ script:
+     path: /full/path/to/bin/foo.pl
+     parse: 0
+     allow_errors: 1
+ context:
+     - db
+     - vcs
+ ---
+ script:
+     path: bin/__CAMP_FOO__/with_token/always_run/baz.pl
+     parse: 1
+     allow_errors: 0
+ context:
+     - global
+ ---
+ script:
+     path: bin/mkcamp_and_refresh-camp/only/buz.pl
+     parse: 0
+     allow_errors: 0
+ context:
+     - mkcamp
+     - refresh-camp
+ ---
+ script:
+     path: /used/to/run/from/run_post_mkcamp_command.pl
+     parse: 0
+     allow_errors: 1
+ context:
+     - mkcamp
+
+=back
+
+=cut
+
+sub run_post_processing {
+    my %sections = map { $_ => 1, } grep { defined and /\S/ } (@_, 'global');
+
+    my $conf = config_hash();
+    my $file = post_processing_config_path();
+    if (! -f $file) {
+        print "no post-processing configuration file to run.\n";
+        return;
+    }
+
+    use_yaml();
+    my @data = parse_yaml( $file );
+    if (! @data) {
+        print "no commands found in post-processing file.\n";
+        return;
+    }
+
+    die "the post-processing data structures are invalid\n"
+        if grep {
+            not
+                ref ($_) eq 'HASH'
+                &&
+                length (($_->{script} || {})->{path} // '')
+                &&
+                ref ($_->{context}) eq 'ARRAY'
+        } @data;
+
+    SCRIPT:
+    for my $node (@data) {
+        my ($script, $context) = @{$node}{qw/script context/};
+        next SCRIPT unless
+            grep { $sections{$_} } @$context;
+
+        my $cmd = $script->{path};
+        $cmd = substitute_hash_tokens($cmd, $conf)
+            if $script->{parse};
+
+        $cmd = File::Spec->catfile( $conf->{path}, $cmd )
+            unless File::Spec->file_name_is_absolute($cmd);
+
+        {
+            local $@;
+            eval {
+                -e $cmd
+                    or die "File '$cmd' cannot be found";
+                -x $cmd
+                    or die "'$cmd' is not executable";
+            };
+
+            if (my $err = $@) {
+                chop ($err);
+                if ($script->{allow_errors}) {
+                    warn "$err Skipping.\n";
+                    next SCRIPT;
+                }
+                die "$err Aborting.\n";
+            }
+        }
+
+        local $ENV{CAMP} = $conf->{number};
+        my $do_system = $script->{allow_errors} ? \&do_system_soft : \&do_system;
+        $do_system->($cmd);
+    }
+    return @data;
 }
 
 =pod

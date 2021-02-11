@@ -7,11 +7,10 @@
 
 <div class="mixcase">
 
-<h2>Mailing lists</h2>
+<h2>Mailing list</h2>
 
 <p>
-User and developer discussion: <a href="https://www.interchangecommerce.org/mailman/listinfo/camps-users">camps-users</a><br />
-Source code commit notifications: <a href="https://www.interchangecommerce.org/mailman/listinfo/camps-commits">camps-commits</a>
+User and developer discussion: <a href="https://www.interchangecommerce.org/mailman/listinfo/camps-users">camps-users</a>
 </p>
 
 <h2>Issue tracking</h2>

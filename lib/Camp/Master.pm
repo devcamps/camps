@@ -3224,7 +3224,7 @@ sub db_version_mysql {
 
     my $opts = "-u $user -p'$pass'";
     my $raw = `echo 'select version()' | mysql $opts | grep -v version 2>/dev/null`;
-    $raw =~ s/\n.*//s;  # keep only the first line if nessisary
+    $raw =~ s/\n.*//s;  # keep only the first line
     return $raw if $arg{raw};
     my ($full, $numeric, $major_minor) = $raw =~ /(((\d+\.\d+)(?:\.\d+)?)\S*)/;
     return $full if $arg{full};

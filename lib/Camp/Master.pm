@@ -662,7 +662,7 @@ Here's an example of a file:
  default_link: 1
  always: 1
  ---
- source: remote@endpoint.com:/var/www/image_repository
+ source: remote@yourdomain.tld:/var/www/image_repository
  target: image_repository
  default_link: 1
  always: 1
@@ -3421,7 +3421,7 @@ Ethan Rowe and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2020 End Point Corporation, https://www.endpoint.com/
+Copyright (C) 2006-2020 End Point Corporation, https://www.endpointdev.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

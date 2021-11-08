@@ -1310,7 +1310,7 @@ Ethan Rowe and other contributors
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (C) 2006-2015 End Point Corporation, https://www.endpoint.com/
+Copyright (C) 2006-2015 End Point Corporation, https://www.endpointdev.com/
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

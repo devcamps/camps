@@ -2832,6 +2832,9 @@ sub _import_camp_data {
     # Import data
     for my $script (@$sources) {
         my $script_file = $script;
+        $script_file = File::Spec->file_name_is_absolute($script_file)
+            ? $script_file
+            : File::Spec->catfile(type_path(), $script_file);
         if ($conf_hash->{db_source_scripts_parse}{$script}) {
             print "Tokenizing script '$script'\n";
             # slurp source script
@@ -2844,9 +2847,6 @@ sub _import_camp_data {
             $tmpfile->close;
             $script_file = $tmpfile;
         }
-        $script_file = File::Spec->file_name_is_absolute($script_file)
-            ? $script_file
-            : File::Spec->catfile(type_path(), $script_file);
         my $cmd = _import_db_cmd($script_file, $conf);
         print "Processing script '$script':\n$cmd\n";
         system($cmd) == 0 or die "Error importing data\n";

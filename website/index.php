@@ -3,9 +3,9 @@
     include "header.php";
 ?>
 
-<h1>Your web development process is broken!</h1>
+<h1>A better web development process!</h1>
 
-<p>Make it better with DevCamps, a system for easily managing “camps” — environments for development, integration, staging, and production.</p>
+<p>We use DevCamps, a system for easily managing “camps” — environments for development, integration, staging, and production.</p>
 
 <p>Camps make developers more efficient and projects run more effectively. Developers and business users can collaborate in real time.</p>
 

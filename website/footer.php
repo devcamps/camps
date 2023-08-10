@@ -59,14 +59,13 @@ echo $quote;
 
         <p id="copy">© 2006–<?php echo date("Y") ?> <a href="https://www.endpointdev.com/">End Point Corporation</a></p>
 
-        <script type="text/javascript">
-            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-        </script>
-        <script type="text/javascript">
-            var pageTracker = _gat._getTracker('UA-525312-11');
-            pageTracker._initData();
-            pageTracker._trackPageview();
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-EEF5LR6B99"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-EEF5LR6B99');
         </script>
     </body>
 </html>

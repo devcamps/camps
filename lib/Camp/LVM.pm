@@ -112,14 +112,24 @@ sub create_lv {
 
     my @args = (
         '/usr/sbin/lvcreate',
-        "-L $lv_size",
         "-n $vg/$lv",
     );
+    if (!$conf->{lvm_thin_pool}) {
+        push @args, "-L $lv_size";
+    }
     if ($conf->{use_origin}) {
-        push @args, "-y -Wy -Zy";
+        if ($conf->{lvm_thin_pool}) {
+            push @args, "--thinpool $conf->{lvm_thin_pool} -V $lv_size -y -Wy";
+        }
+        else {
+            push @args, "-y -Wy -Zy";
+        }
     }
     else {
         push @args, "-s $vg/$conf->{lvm_origin_name}";
+        if ($conf->{lvm_thin_pool}) {
+            push @args, "--setactivationskip n --activate y";
+        }
     }
     my $cmd = join(' ', @args);
     print "Creating:\n$cmd\n";

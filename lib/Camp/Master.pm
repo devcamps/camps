@@ -1509,6 +1509,10 @@ by this same size if their usage exceeds 50%.
 
 The LVM volume name to clone for snapshots.  For example, lvm_origin_volume:vg0/CampOriginDB.
 
+=item lvm_thin_pool
+
+The LVM thin pool to be used for the snapshots (optional). For example, lvm_thin_pool:vg0/thin_pool
+
 =item camp_subdirectories
 
 A space-separated list of directories that are expected to reside under your camp (naturally, these paths

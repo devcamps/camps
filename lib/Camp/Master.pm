@@ -3045,6 +3045,8 @@ sub server_control {
     $services{$dbtype}  = $db_services{$dbtype};
     delete $services{db} if $conf_hash->{skip_db};
 
+    die "Invalid action '$action' specified!\n" unless $actions{$action};
+
     my @services = grep { defined $services{$_} } qw(
         httpd
         pg
@@ -3055,7 +3057,8 @@ sub server_control {
         app
     );
 
-    die "Invalid action '$action' specified!\n" unless $actions{$action};
+    @services = reverse @services if $action eq 'stop';
+
     my @services_to_start;
     if ($service eq 'all') {
         @services_to_start = grep !defined($db_services{$_}), @services;

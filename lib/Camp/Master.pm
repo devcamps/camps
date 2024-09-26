@@ -1256,11 +1256,13 @@ When setting skip_apache, set this to the command to start your webserver. An ex
 
 When setting skip_apache, set this to the command to stop your webserver. An example with nginx:
 
- pid=`cat __CAMP_PATH__/var/run/nginx.pid 2>/dev/null` && kill $pid
+ /usr/sbin/nginx -c __CAMP_PATH__/nginx/nginx.conf -s stop
 
 =item httpd_restart
 
-pid=`cat __CAMP_PATH__/var/run/nginx.pid 2>/dev/null` && kill -HUP $pid || /usr/sbin/nginx -c __CAMP_PATH__/nginx/nginx.conf
+When setting skip_apache, set this to the command to restart your webserver. An example with nginx:
+
+ /usr/sbin/nginx -c __CAMP_PATH__/nginx/nginx.conf -s reload
 
 =item skip_ssl_cert_gen
 

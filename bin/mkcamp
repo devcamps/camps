@@ -147,7 +147,7 @@ END
 else {
     server_control(
         service => 'all',
-        action  => 'restart',
+        action  => 'start',
     );
     server_control(
         service => 'app',

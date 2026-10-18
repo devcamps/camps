@@ -482,7 +482,10 @@ sub _parse_file {
         if $Camp::Config::DEBUG;
 
     my $entry_scope = $#$scoped_parse_var_flag;
-    my ($marker, $key, $val, $mark_type, $ifdef);
+    # $cond_style is 'bare' (ifdef/endif) or 'hash' (#ifdef/#endif) while inside a
+    # conditional block, undef outside one; $cond_active is whether its condition held.
+    my ($marker, $key, $val, $mark_type, $cond_style, $cond_active);
+    my %cond_name = (bare => 'ifdef', hash => '#ifdef');
     open my $CONF, '<', $file or die "Can't open configuration file '$file' from directory '" . Cwd::getcwd() . "': $!\n";
     while (<$CONF>) {
         if (defined $marker) {
@@ -494,18 +497,46 @@ sub _parse_file {
                 next;
             }
         }
-        elsif (/^\s*#if(n?)def\s*(.*)/) {
-            die sprintf("#ifdefs cannot overlap at line %d of %s!\n", $., $file) if defined $ifdef;
-            $ifdef = $invocant->_ifdef($catalog, $2, $1);
+        elsif (/^\s*(#)if(n?)def\s*(.*)/i or /^\s*()if(n?)def\s+(.*)/i) {
+            my ($hash, $not, $cond) = ($1, $2, $3);
+            my $style = $hash ? 'hash' : 'bare';
+            if (defined $cond_style) {
+                die sprintf(
+                    "%s cannot overlap open %s block at line %d of %s!\n",
+                    $cond_name{$style}, $cond_name{$cond_style}, $., $file,
+                ) if $style eq $cond_style;
+                # An opener of the other style is ignored, like a closer of the other style.
+                warn sprintf(
+                    "%s cannot open a block inside open %s block at line %d of %s; ignoring it!\n",
+                    lc("${hash}if${not}def"), $cond_name{$cond_style}, $., $file,
+                );
+                next;
+            }
+            $cond_style = $style;
+            $cond_active = $invocant->_ifdef($catalog, $cond, $not, $file, $.) ? 1 : 0;
             next;
         }
-        elsif (/^s*#endif\s*$/) {
-            warn sprintf("#endif found with no starting #ifdef at line %d of %s!\n", $., $file) unless defined $ifdef;
-            $ifdef = undef;
+        elsif (/^\s*(#?)endif\s*$/i) {
+            my $style = $1 ? 'hash' : 'bare';
+            if (!defined $cond_style) {
+                warn sprintf(
+                    "%sendif found with no starting %s at line %d of %s!\n",
+                    $1, $cond_name{$style}, $., $file,
+                );
+            }
+            elsif ($cond_style ne $style) {
+                warn sprintf(
+                    "%sendif cannot close open %s block at line %d of %s; ignoring it!\n",
+                    $1, $cond_name{$cond_style}, $., $file,
+                );
+            }
+            else {
+                $cond_style = $cond_active = undef;
+            }
             next;
         }
         else {
-            next if defined $ifdef and !$ifdef;
+            next if defined $cond_style and !$cond_active;
             next if /^\s*#/ or /^\s*$/ or !/\S/;
             chomp;
 
@@ -590,7 +621,7 @@ sub _parse_file {
     }
 
     die "Configuration file '$file' contains unterminated <<HERE doc (<$mark_type$marker)!\n" if defined $marker;
-    die "Configuration file '$file' contained unterminated #ifdef!\n" if defined $ifdef;
+    die "Configuration file '$file' contained unterminated $cond_name{$cond_style}!\n" if defined $cond_style;
     close $CONF or die "Error closing $file\n";
 
     @$scoped_parse_var_flag = @$scoped_parse_var_flag[0..$entry_scope];
@@ -611,7 +642,7 @@ sub _ifdef {
         my $safe = new Safe;
         $result = $safe->reval( "q{$value} $expr" );
         if ($@) {
-            warn sprintf('syntax error in #ifdef at %d of %s: %s', $line, $file, $@);
+            warn sprintf('syntax error in ifdef condition at line %d of %s: %s', $line, $file, $@);
             $result = undef;
         }
     }
@@ -1079,13 +1110,24 @@ heredoc.
 
 =head1 CONDITIONS (IFDEF, IFNDEF)
 
-B<Camp::Config> understands B<#ifdef> and B<#ifndef> statements, and treats them
-exactly as does Interchange itself.  For clarity's sake, these declarations take the following
+B<Camp::Config> understands B<ifdef> and B<ifndef> statements, and treats them
+as does Interchange itself.  For clarity's sake, these declarations take the following
 form:
+
+ if(n)def VARIABLE_NAME [ perl_expression ]
+ ...other directives...
+ endif
+
+This bare form is the only one current Interchange supports; it treats lines beginning
+with an octothorpe as comments.  Older Interchange versions instead used an octothorpe
+form, which B<Camp::Config> also continues to understand:
 
  #if(n)def VARIABLE_NAME [ perl_expression ]
  ...other directives...
  #endif
+
+Either form may be indented, and the directives are matched case-insensitively.  The
+bare form requires whitespace between B<ifdef> or B<ifndef> and the variable name.
 
 The I<VARIABLE_NAME> is expected to correspond to a variable of the same scope as the
 level of parsing (meaning that for global files it would correspond to a global variable
@@ -1096,7 +1138,7 @@ is global rather than catalog-level.
 If the optional I<perl_expression> is provided, it will be evaled with the value of
 of I<VARIABLE_NAME>, such variable FOO with value "bar" in the following directive:
 
- #ifdef FOO eq 'pooh'
+ ifdef FOO eq 'pooh'
 
 would eval as
 
@@ -1105,13 +1147,22 @@ would eval as
 and thus be false.
 
 If the expression is left out, the check is based on the perly truth of the variable named;
-when provided, the check is based on the perly truth of the eval operation.  The B<#ifdef>
-directive will be true if the result is true; the B<#ifndef> directive will be true if the
-result is false.  Configuration lines within a true B<#if(n)def> block will be processed,
-and within a false block ignored.  The blocks must be terminated by B<#endif>.
+when provided, the check is based on the perly truth of the eval operation.  The B<ifdef>
+directive will be true if the result is true; the B<ifndef> directive will be true if the
+result is false.  An expression with a syntax error produces a warning and is treated as
+false (so, as in Interchange, the B<ifdef> block is skipped and the B<ifndef> block
+processed).  Configuration lines within a true block will be processed, and within a
+false block ignored.
 
-B<Camp::Config> will throw an exception if any file parsed contains an unterminated
-B<#ifdef> block.
+Each block must be terminated by the closer of its own form: B<endif> for B<if(n)def>,
+and B<#endif> for B<#if(n)def>.  A closer of the other form does not end the block; it
+produces a warning and is otherwise ignored.  A closer with no open block produces a
+warning.  A block cannot be opened inside an open block of the same form; doing so
+throws an exception.  An opener of the other form inside an open block, like a closer
+of the other form, produces a warning and is otherwise ignored.
+
+B<Camp::Config> will throw an exception if any file parsed contains a block opened
+inside an open block of the same form or an unterminated block of either form.
 
 =head1 METHODS
 

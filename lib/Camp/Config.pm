@@ -494,13 +494,13 @@ sub _parse_file {
                 next;
             }
         }
-        elsif (/^\s*#if(n?)def\s*(.*)/) {
-            die sprintf("#ifdefs cannot overlap at line %d of %s!\n", $., $file) if defined $ifdef;
-            $ifdef = $invocant->_ifdef($catalog, $2, $1);
+        elsif (/^\s*if(n?)def\s+(.*)/i) {
+            die sprintf("ifdefs cannot overlap at line %d of %s!\n", $., $file) if defined $ifdef;
+            $ifdef = $invocant->_ifdef($catalog, $2, $1, $file, $.);
             next;
         }
-        elsif (/^s*#endif\s*$/) {
-            warn sprintf("#endif found with no starting #ifdef at line %d of %s!\n", $., $file) unless defined $ifdef;
+        elsif (/^\s*endif\s*$/i) {
+            warn sprintf("endif found with no starting ifdef at line %d of %s!\n", $., $file) unless defined $ifdef;
             $ifdef = undef;
             next;
         }
@@ -590,7 +590,7 @@ sub _parse_file {
     }
 
     die "Configuration file '$file' contains unterminated <<HERE doc (<$mark_type$marker)!\n" if defined $marker;
-    die "Configuration file '$file' contained unterminated #ifdef!\n" if defined $ifdef;
+    die "Configuration file '$file' contained unterminated ifdef!\n" if defined $ifdef;
     close $CONF or die "Error closing $file\n";
 
     @$scoped_parse_var_flag = @$scoped_parse_var_flag[0..$entry_scope];
@@ -611,8 +611,8 @@ sub _ifdef {
         my $safe = new Safe;
         $result = $safe->reval( "q{$value} $expr" );
         if ($@) {
-            warn sprintf('syntax error in #ifdef at %d of %s: %s', $line, $file, $@);
-            $result = undef;
+            warn sprintf("syntax error in ifdef at line %d of %s: %s", $line, $file, $@);
+            $result = '';
         }
     }
     return $not ? !$result : $result;
@@ -1079,13 +1079,17 @@ heredoc.
 
 =head1 CONDITIONS (IFDEF, IFNDEF)
 
-B<Camp::Config> understands B<#ifdef> and B<#ifndef> statements, and treats them
+B<Camp::Config> understands B<ifdef> and B<ifndef> statements, and treats them
 exactly as does Interchange itself.  For clarity's sake, these declarations take the following
 form:
 
- #if(n)def VARIABLE_NAME [ perl_expression ]
+ if(n)def VARIABLE_NAME [ perl_expression ]
  ...other directives...
- #endif
+ endif
+
+As in Interchange, the directives may be indented and are matched case-insensitively.
+Lines such as B<#ifdef> and B<#endif> are comments, as they have been in Interchange
+since 2006; the configuration lines between them are processed unconditionally.
 
 The I<VARIABLE_NAME> is expected to correspond to a variable of the same scope as the
 level of parsing (meaning that for global files it would correspond to a global variable
@@ -1096,7 +1100,7 @@ is global rather than catalog-level.
 If the optional I<perl_expression> is provided, it will be evaled with the value of
 of I<VARIABLE_NAME>, such variable FOO with value "bar" in the following directive:
 
- #ifdef FOO eq 'pooh'
+ ifdef FOO eq 'pooh'
 
 would eval as
 
@@ -1105,13 +1109,15 @@ would eval as
 and thus be false.
 
 If the expression is left out, the check is based on the perly truth of the variable named;
-when provided, the check is based on the perly truth of the eval operation.  The B<#ifdef>
-directive will be true if the result is true; the B<#ifndef> directive will be true if the
-result is false.  Configuration lines within a true B<#if(n)def> block will be processed,
-and within a false block ignored.  The blocks must be terminated by B<#endif>.
+when provided, the check is based on the perly truth of the eval operation.  The B<ifdef>
+directive will be true if the result is true; the B<ifndef> directive will be true if the
+result is false.  An expression with a syntax error produces a warning and is treated as
+false, so (as in Interchange) the B<ifdef> block is skipped and the B<ifndef> block
+processed.  Configuration lines within a true B<if(n)def> block will be processed,
+and within a false block ignored.  The blocks must be terminated by B<endif>.
 
-B<Camp::Config> will throw an exception if any file parsed contains an unterminated
-B<#ifdef> block.
+B<Camp::Config> will throw an exception if any file parsed contains overlapping or
+unterminated B<ifdef> blocks.  An B<endif> with no open block produces a warning.
 
 =head1 METHODS
 

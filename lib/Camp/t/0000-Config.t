@@ -458,36 +458,36 @@ SKIP: {
         my $suff = $level ? '-- catalog' : '-- global';
         ok(
             $class->variable( $level, 'SIMPLE_IFDEF' ),
-            "#ifdef simple $suff",
+            "ifdef simple $suff",
         );
         ok(
             $class->variable( $level, 'SIMPLE_IFNDEF' ),
-            "#ifndef simple $suff",
+            "ifndef simple $suff",
         );
         ok(
             $class->variable( $level, 'EXPR_IFDEF_TRUE' ),
-            "#ifdef with evaled expression $suff",
+            "ifdef with evaled expression $suff",
         );
         is(
             $class->variable( $level, 'LOCATION'),
             $level ? 'catalog' : 'global',
-            "#ifdef reads variables from correct space $suff",
+            "ifdef reads variables from correct space $suff",
         );
         ok(
             $class->variable( $level, 'GLOBAL_CHECK' ),
-            "#ifdef global token $suff",
+            "ifdef global token $suff",
         );
     }
 
     eval {
         $class->_parse_file( undef, File::Spec->catfile($path, 'ifdef_nested.cfg') );
     };
-    ok( $@, 'nested #ifdef throws exception' );
+    ok( $@, 'nested ifdef throws exception' );
 
     eval {
         $class->_parse_file( undef, File::Spec->catfile($path, 'ifdef_unterminated.cfg') );
     };
-    ok( $@, 'unterminated #ifdef throws exception' );
+    ok( $@, 'unterminated ifdef throws exception' );
 
     my $newname = 'bogus';
     my $c;

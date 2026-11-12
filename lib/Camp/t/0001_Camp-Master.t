@@ -317,36 +317,36 @@ diag(sprintf('catalog(): %s    $Vend::Cfg->{CatalogName}: %s', $obj->catalog, $V
         my $suff = $level ? '-- catalog' : '-- global';
         ok(
             $obj->variable( $level, 'SIMPLE_IFDEF' ),
-            "#ifdef simple $suff",
+            "ifdef simple $suff",
         );
         ok(
             $obj->variable( $level, 'SIMPLE_IFNDEF' ),
-            "#ifndef simple $suff",
+            "ifndef simple $suff",
         );
         ok(
             $obj->variable( $level, 'EXPR_IFDEF_TRUE' ),
-            "#ifdef with evaled expression $suff",
+            "ifdef with evaled expression $suff",
         );
         is(
             $obj->variable( $level, 'LOCATION'),
             $level ? 'catalog' : 'global',
-            "#ifdef reads variables from correct space $suff",
+            "ifdef reads variables from correct space $suff",
         );
         ok(
             $obj->variable( $level, 'GLOBAL_CHECK' ),
-            "#ifdef global token $suff",
+            "ifdef global token $suff",
         );
     }
 
     eval {
         $obj->_parse_file( undef, File::Spec->catfile($test_dir, 'ifdef_nested.cfg') );
     };
-    ok( $@, 'nested #ifdef throws exception' );
+    ok( $@, 'nested ifdef throws exception' );
 
     eval {
         $obj->_parse_file( undef, File::Spec->catfile($test_dir, 'ifdef_unterminated.cfg') );
     };
-    ok( $@, 'unterminated #ifdef throws exception' );
+    ok( $@, 'unterminated ifdef throws exception' );
 
     my $newname = 'bogus';
     my $c;
